@@ -207,6 +207,8 @@ int main(int argc, char* argv[])
 			printf("[imageViewer] New image in shmem signaled [%d]\n\r", i++);			
 			
 			/* Here you can call image processing functions. E.g. */
+
+			/* Should swap this function call to threads, as well as implement other threads*/
 			if(!imgFindBlueSquare(shMemPtr, width, height, &cm_x, &cm_y)) {
 				printf("BlueSquare found at (%3d,%3d)\n", cm_x, cm_y);
 			} else {
