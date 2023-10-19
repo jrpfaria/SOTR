@@ -9,7 +9,7 @@ CAB *open_cab(int size, int num_of_tasks)
 {
     // Alloc memory for CAB struct
     // num(pixels) * (3(rgb) + 1(align)) * num_of_tasks + 1)
-    CAB *cab = malloc(size * sizeof(uint32_t) * (3 + 1));
+    CAB *cab = malloc(size * sizeof(uint32_t) * (num_of_tasks + 1));
 
     if (cab == NULL)
     {
@@ -18,7 +18,9 @@ CAB *open_cab(int size, int num_of_tasks)
     }
 
     // Set CAB values
-    
+    cab->most_recent = NULL;
+    cab->size_of_data = size;
+    cab->num_of_tasks = num_of_tasks;
 
     return cab;
 }

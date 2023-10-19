@@ -5,7 +5,7 @@ typedef struct{
     int most_recent; // the most recent buffer
     int size_of_data; // size of the data in the buffer
     int num_of_tasks; // number of tasks
-    void *buffers[num_of_tasks][2]; // array of buffers (2D array to know if they're being used or not)
+    void *buffers[][2]; // array of buffers (2D array to know if they're being used or not)
 }CAB;
 
 CAB *open_cab(int size, int num_of_tasks);
