@@ -16,7 +16,7 @@ void put_mes(CAB *cabId, void *buffer);
 
 void *get_mes(CAB *cabId);
 
-void unget(void *img_pointer, CAB *cabId);
+void unget(CAB *cabId, void *pointer);
 
 void delete_cab(CAB *cabId);
 
