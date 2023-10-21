@@ -1,23 +1,33 @@
 #ifndef __CAB__
 #define __CAB__
 
-typedef struct{
-    int most_recent; // the most recent buffer
-    int size_of_data; // size of the data in the buffer
-    int num_of_tasks; // number of tasks
-    void *buffers[][2]; // array of buffers (2D array to know if they're being used or not)
-}CAB;
+typedef struct cab CAB;
+typedef struct cab_buffer CAB_BUFFER;
 
-CAB *open_cab(int size, int num_of_tasks);
+struct cab {
+    CAB_BUFFER* free;
+    CAB_BUFFER* mrb;
+    int max_buffer;
+    int buffer_size;
 
-void *reserve(CAB *cabId);
+};
 
-void put_mes(CAB *cabId, void *buffer);
+struct cab_buffer {
+    CAB_BUFFER* next;
+    int use;
+    void* data;
+};
 
-void *get_mes(CAB *cabId);
+CAB *open_cab(int, int);
 
-void unget(CAB *cabId, void *pointer);
+CAB_BUFFER *reserve(CAB*);
 
-void delete_cab(CAB *cabId);
+void put_mes(CAB*, CAB_BUFFER*);
+
+void *get_mes(CAB*);
+
+void unget(CAB*, CAB_BUFFER*);
+
+void delete_cab(CAB*);
 
 #endif

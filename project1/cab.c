@@ -7,71 +7,75 @@
 
 CAB *open_cab(int size, int num_of_tasks)
 {
-    // Alloc memory for CAB struct
+    // Allocate memory for CAB struct
     // num(pixels) * (3(rgb) + 1(align)) * num_of_tasks + 1)
-    CAB *cab = malloc(size * sizeof(uint32_t) * (num_of_tasks + 1));
-
-    if (cab == NULL)
-    {
+    CAB* c = malloc(size * sizeof(CAB) * (num_of_tasks + 1));
+    
+    if (c == NULL){
         printf("Error: malloc failed\n");
         return NULL;
     }
 
-    // Set CAB values
-    cab->most_recent = NULL;
-    cab->size_of_data = size;
-    cab->num_of_tasks = num_of_tasks;
+    // Initialize CAB struct
+    c->free = NULL;
+    c->mrb = NULL;
+    c->max_buffer = num_of_tasks + 1;
+    c->buffer_size = size;
 
-    return cab;
+    return c;
 }
 
-void *reserve(CAB *cabId)
+CAB_BUFFER *reserve(CAB* c)
 {
-    void *p;
-    
-    for (int i = 0; i < cabId->num_of_tasks; i++)
-    {
-        if (cabId->buffers[i][1] == 0)
-        {
-            cabId->buffers[i][1] = 1;
-            p = cabId->buffers[i][0];
-            return p;
-        }
+    if (c->mrb == NULL){
+        printf("Error: no message\n");
+        return NULL;
     }
 
-    printf("Error: no available buffers\n");
-    return NULL;
-}
-
-void put_mes(CAB *cabId, void *buffer)
-{
-    // if c.mrb.use == 0
-    //    c.mrb.next = c.free (if not accessed deallocate the mrb)
-    //    c.mrb.free = c.mrb
-    if (cabId->buffers[cabId->most_recent][1] == 0)
-    {
-
-    }
-    // c.mrb = p (update mrb)
-}
-
-void *get_mes(CAB *cabId)
-{
-    void *p;
-    // p = c.mrb (get pointer to most recent buffer)
-    // p.use = p.use + 1 (increment use)
+    CAB_BUFFER *p = c->mrb;
+    c->free = p->next;
     return p;
 }
 
-void unget(CAB *cabId, void *pointer)
+void put_mes(CAB *c, CAB_BUFFER *buffer)
 {
-    // p.use = p.use - 1 (decrement use)
-    // if p.use == 0 && p != c.mrb
-    //    p.next = c.free
-    //    c.free = p
+    if (c->mrb == NULL){
+        printf("Error: no message\n");
+        return;
+    }
+
+    if(c->mrb->use == 0) {
+        c->mrb->next = c->free;
+        c->free = c->mrb;
+    }
+    
+    c->mrb = buffer;
 }
 
-void delete_cab(CAB *cabId)
+void *get_mes(CAB *c)
 {
-    free(cabId);
+    if (c->mrb == NULL){
+        printf("Error: no message\n");
+        return NULL;
+    }
+   
+    CAB_BUFFER *p = c->mrb;
+    p = c->mrb;
+    p->use = p->use + 1;
+    
+    return p;
+}
+
+void unget(CAB *c, CAB_BUFFER *p)
+{
+    p->use = p->use - 1;
+    if((p->use == 0) && (p != c->mrb)) {
+        p->next = c->free;
+        c->free = p;
+    }
+}
+
+void delete_cab(CAB *c)
+{
+    free(c);
 }
