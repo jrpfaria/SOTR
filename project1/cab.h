@@ -9,7 +9,6 @@ struct cab {
     CAB_BUFFER* mrb;
     int max_buffer;
     int buffer_size;
-
 };
 
 struct cab_buffer {

@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <string.h>
+#include <pthread.h>
 
 #include "cab.h"
 
@@ -32,8 +33,13 @@ CAB_BUFFER *reserve(CAB* c)
         return NULL;
     }
 
+    // pthread_mutex_lock(c->mrb);
+
     CAB_BUFFER *p = c->mrb;
     c->free = p->next;
+
+    // pthread_mutex_unlock(c->mrb);
+
     return p;
 }
 
@@ -58,21 +64,29 @@ void *get_mes(CAB *c)
         printf("Error: no message\n");
         return NULL;
     }
-   
+
+    // pthread_mutex_lock(&c->mrb);
+
     CAB_BUFFER *p = c->mrb;
     p = c->mrb;
     p->use = p->use + 1;
     
+    // pthread_mutex_unlock(&c->mrb);
+
     return p;
 }
 
 void unget(CAB *c, CAB_BUFFER *p)
 {
+    // pthread_mutex_lock(p);
+
     p->use = p->use - 1;
     if((p->use == 0) && (p != c->mrb)) {
         p->next = c->free;
         c->free = p;
     }
+
+    // pthread_mutex_unlock(p);
 }
 
 void delete_cab(CAB *c)
