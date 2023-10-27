@@ -74,8 +74,7 @@ int fd=0;						/* File descriptor for shared memory */
 void * shMemPtr = NULL; 		/* Pointer top shered memory region */
 sem_t * newDataSemAddr = NULL;	/* Pointer to semaphore */
  
- 
- 
+
 /* **************************************************
  * main() function
 *****************************************************/
