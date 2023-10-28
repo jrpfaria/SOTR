@@ -5,7 +5,6 @@
 #include <pthread.h>
 
 #include "./include/cab.h"
-#include "./include/threads.h"
 
 CAB *open_cab(int size, int num_of_tasks)
 {
@@ -13,7 +12,7 @@ CAB *open_cab(int size, int num_of_tasks)
     CAB* c = malloc(sizeof(CAB));
     CAB_BUFFER* buffer = malloc(sizeof(CAB_BUFFER) * (++num_of_tasks));
 
-    if (c == NULL){
+    if (c == NULL || buffer == NULL){
         printf("Error: malloc failed\n");
         return NULL;
     }
