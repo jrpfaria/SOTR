@@ -9,20 +9,28 @@
 
 CAB *open_cab(int size, int num_of_tasks)
 {
-    // Allocate memory for CAB struct
-    // num(pixels) * (3(rgb) + 1(align)) * num_of_tasks + 1)
-    CAB* c = malloc(size * sizeof(CAB) * (num_of_tasks + 1));
-    
+    // Allocate memory for CAB and CAB_BUFFER structs
+    CAB* c = malloc(sizeof(CAB));
+    CAB_BUFFER* buffer = malloc(sizeof(CAB_BUFFER) * (++num_of_tasks));
+
     if (c == NULL){
         printf("Error: malloc failed\n");
         return NULL;
     }
 
     // Initialize CAB struct
-    c->free = NULL;
-    c->mrb = NULL;
-    c->max_buffer = num_of_tasks + 1;
+    c->free = buffer;
+    c->mrb = buffer;
+    c->max_buffer = num_of_tasks;
     c->buffer_size = size;
+
+    // Initialize CAB_BUFFER struct
+    for(int i = 0; i < num_of_tasks; i++) {
+        buffer->next = i == num_of_tasks ? buffer+sizeof(CAB_BUFFER) : NULL;
+        buffer->use = 0;
+        buffer->data = NULL;
+        buffer = buffer->next;        
+    }
 
     return c;
 }
