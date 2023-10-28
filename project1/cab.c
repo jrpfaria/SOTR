@@ -26,7 +26,7 @@ CAB *open_cab(int size, int num_of_tasks)
 
     // Initialize CAB_BUFFER struct
     for(int i = 0; i < num_of_tasks; i++) {
-        buffer->next = i == num_of_tasks ? buffer+sizeof(CAB_BUFFER) : NULL;
+        buffer->next = (i == num_of_tasks - 1) ? buffer + sizeof(CAB_BUFFER) : NULL;
         buffer->use = 0;
         buffer->data = NULL;
         buffer = buffer->next;        
