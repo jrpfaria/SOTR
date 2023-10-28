@@ -46,7 +46,8 @@
 
 /* Function prototypes */
 int imgFindBlueSquare(unsigned char * shMemPtr, uint16_t width, uint16_t height, int16_t *cm_x, int16_t *cm_y);
-int imgMakeGrayScale(unsigned char *, uint16_t, uint16_t, int16_t *, int16_t *);
+int imgEdgeDetection(unsigned char *, uint16_t, uint16_t, int16_t *, int16_t *);
+int imgDetectObstacles(unsigned char *, uint16_t, uint16_t, int16_t *, int16_t *, float *);
 
 /* Global variables */
 unsigned char appName[]="imageDisplay"; /* Application name*/
@@ -74,7 +75,8 @@ int fd=0;						/* File descriptor for shared memory */
 void * shMemPtr = NULL; 		/* Pointer top shered memory region */
 sem_t * newDataSemAddr = NULL;	/* Pointer to semaphore */
  
-
+ 
+ 
 /* **************************************************
  * main() function
 *****************************************************/
@@ -86,6 +88,7 @@ int main(int argc, char* argv[])
 		err; /* Generic return code variable */ 		
 	unsigned char * imgPtr;
 	int16_t cm_x, cm_y;
+	float closeness;
 		
 
 	/* Process input args */	
@@ -202,6 +205,10 @@ int main(int argc, char* argv[])
             if (event.type == SDL_QUIT) exit(0);
         }    	
         
+		//Image img = Scheduler.getImage();
+		//imgDetectObstacler(img, width, height, etc,etc,etc);
+		//render img
+
         /* Check if new image arrived ...*/
         if (!sem_wait(newDataSemAddr)) { /* sem_wait returns 0 on success */
 			printf("[imageViewer] New image in shmem signaled [%d]\n\r", i++);			
@@ -209,31 +216,21 @@ int main(int argc, char* argv[])
 			/* Here you can call image processing functions. E.g. */
 
 			/* Should swap this function call to threads, as well as implement other threads*/
-			imgMakeGrayScale(shMemPtr, width, height, &cm_x, &cm_y);
+			// imgEdgeDetection(shMemPtr, width, height, &cm_x, &cm_y);
+			// imgMakeGrayScale(shMemPtr, width, height, &cm_x, &cm_y);
 			// if(!imgFindBlueSquare(shMemPtr, width, height, &cm_x, &cm_y)) {
 			// 	printf("BlueSquare found at (%3d,%3d)\n", cm_x, cm_y);
 			// } else {
 			// 	printf("BlueSquare not found\n");
-			// }			
+			// }	
+			if(!imgDetectObstacles(shMemPtr, width, height, &cm_x, &cm_y, &closeness)) {
+				printf("Obstacle found at (%3d,%3d), %3f%% close\n", cm_x, cm_y, closeness);
+			} else {
+				printf("Obstacle not found\n");
+			}		
 			
 			/* Then display the message via SDL */
-#ifdef MANUALCOPY
-			/* Copy the image byte-by-byte. Useful for debugging and  processing */
-			/* Format assumed in this case is RGB32 that shows up in memroy - ascending order- as B+G+R+filler */ 			
-			/* It is a packed format, i.e., in memory, ascending order, R+G+B+Filler of pix 1, then R+G+B+Filler of pix 2, ... */
-			imgPtr = shMemPtr;
-			for (int y = 0; y < height; ++y) {
-				for (int x = 0; x < width; x++) {	
-					pixels[4*(x + y * width)] = *(imgPtr++); 	// Blue 
-					pixels[4*(x + y * width)+1] = *(imgPtr++);	// Green
-					pixels[4*(x + y * width)+2] = *(imgPtr++);	// Red 
-					pixels[4*(x + y * width)+3] = *(imgPtr++);	//Alpha/Filler									
-				}
-			}			
-#else
-			/* Do a more efficient memmcpy instead of byte-by-byte copy*/
 			memcpy(pixels,shMemPtr,width*height*IMGBYTESPERPIXEL);
-#endif
 			SDL_RenderClear(renderer);
 			SDL_UpdateTexture(screen_texture, NULL, pixels, width * IMGBYTESPERPIXEL );
 			SDL_RenderCopy(renderer, screen_texture, NULL, NULL);
@@ -451,28 +448,43 @@ int imgFindBlueSquare(unsigned char * shMemPtr, uint16_t width, uint16_t height,
 }
 
 /* Process image to turn image into gray scale*/
-int imgMakeGrayScale(unsigned char * shMemPtr, uint16_t width, uint16_t height, int16_t *cm_x, int16_t *cm_y){
+int imgEdgeDetection(unsigned char * shMemPtr, uint16_t width, uint16_t height, int16_t *cm_x, int16_t *cm_y){
 	/* Variables */
 	unsigned char *imgPtr;		/* Pointer to image */
 	int i,x,y;					/* Indexes */
 
 	/* Check image size */
 	if(width > MAX_WIDTH || height > MAX_HEIGHT) {
-		printf("[imgMakeGreyScale]ERROR: image size exceeds the limits allowed\n\r");
+		printf("[imgEdgeDetection]ERROR: image size exceeds the limits allowed\n\r");
 		return -1;
 	}
 
-	unsigned char grey;
+	unsigned char* auxImage = malloc(width*height*IMGBYTESPERPIXEL);
+	unsigned char* auxImg = auxImage;
+	memcpy(auxImage, shMemPtr, width*height*IMGBYTESPERPIXEL);
+	
+	unsigned char gray, reference;
 	imgPtr = shMemPtr;
 	for (y = 0; y < height; ++y) {
-		for (x = 0; x < width; x++) {				
-			grey = (*imgPtr + *(imgPtr+1) + *(imgPtr+2))/3;
-			*imgPtr = *(imgPtr+1) = *(imgPtr+2) = grey;	
-
-			/* Step to next pixel */
-			imgPtr+=4;
+		for (x = 0; x < width; x+=2) {		
+			reference = 0;
+			for(i = 0; i < 2; i++) {
+				gray = (*(auxImage) + *(auxImage+1) + *(auxImage+2))/3;
+				
+				if (reference == 0)
+					reference = gray;
+				else if (abs(gray - reference) > 13)
+					*imgPtr = *(imgPtr+1) = *(imgPtr+2) = 255;
+				
+				/* Step to next pixel */
+				imgPtr+=4;
+				auxImage+=4;	
+			}
+			
 		}		
 	}	
+
+	free(auxImg);
 
 	if(*cm_x >= 0 && *cm_y >= 0)
 		return 0;	// Success
@@ -481,12 +493,12 @@ int imgMakeGrayScale(unsigned char * shMemPtr, uint16_t width, uint16_t height, 
 }
 
 /* Process image to detect obstacles */
-int imgDetectObstacles(unsigned char * shMemPtr, uint16_t width, uint16_t height, int16_t *cm_x, int16_t *cm_y){
+int imgDetectObstacles(unsigned char * shMemPtr, uint16_t width, uint16_t height, int16_t *cm_x, int16_t *cm_y, float *closeness){
 	#define FINDBLUE_DBG 	0	// Flag to activate output of image processing debug info 
 	
 	/* Note: the following settings are strongly dependent on illumination intensity and color, ...*/
 	/* 		There are much more robust approaches! */
-	#define MAGNITUDE 		1.5 		// minimum ratio between Blue and other colors to be considered blue
+	#define MAGNITUDE 		1.5		// minimum ratio between Blue and other colors to be considered blue
 	#define PIX_THRESHOLD 	30 	// Minimum number of pixels to be considered an object of interest 
 	#define LPF_SAMPLES		4 	// Simple average for filtering - number of samples to average 
 	
@@ -495,7 +507,14 @@ int imgDetectObstacles(unsigned char * shMemPtr, uint16_t width, uint16_t height
 	int i,x,y;					/* Indexes */
 	int pixCountX[MAX_WIDTH], pixCountY[MAX_HEIGHT];  	/* Count of pixels by row and column */
 	int in_edge, out_edge;			/* Coordinates of obgect edges */ 
-	
+
+	// Just to facilitate iterating through the image's desired area, configurable through hardcoded constants
+	uint16_t left_limit = 3 * width / 8;
+	uint16_t right_limit = 5 * width / 8;
+
+	uint16_t top_limit = 0 * height / 1;
+	uint16_t bottom_limit = 1 * height / 1;
+
 	/* Check image size */
 	if(width > MAX_WIDTH || height > MAX_HEIGHT) {
 		printf("[imgFindBlueSquare]ERROR: image size exceeds the limits allowed\n\r");
@@ -520,46 +539,31 @@ int imgDetectObstacles(unsigned char * shMemPtr, uint16_t width, uint16_t height
 	/* (0,height-1) (1,height-1) (2, height-1) ... (height-1, width-1)*/
 	
 	imgPtr = shMemPtr;
-	for (y = 0; y < height; ++y) {
-		if(FINDBLUE_DBG) printf("\n");
-		for (x = 0; x < width; x++) {	
-			if(FINDBLUE_DBG) {
-				if(x < 20) {
-					printf("%x:%x:%x - ",*imgPtr, *(imgPtr+1), *(imgPtr+2));
-				}			}
+
+	imgPtr += 4 * top_limit * 4 * left_limit;
+	for (y = top_limit ; y < bottom_limit; ++y){
+		for (x = left_limit; x < right_limit; x++){
 			/* Remember that for each pix the access is B+G+R+filler */
 			/* Simple approach: intensity of one componet much greater than the other two */
 			/* There are much robust approaches ... */
-			if(*imgPtr > (MAGNITUDE * (*(imgPtr+1))) && *imgPtr > (MAGNITUDE * (*(imgPtr+2))))
+			if(0xFF > (MAGNITUDE*2 * (*(imgPtr+1))) && 0xFF > (MAGNITUDE*2 * (*(imgPtr+1))) && 0xFF > (MAGNITUDE*2 * (*(imgPtr+2))))
 				pixCountY[y]+=1;
 			
 			/* Step to next pixel */
 			imgPtr+=4;
-		}		
+		}
 	}
 		
 	/* Process image - find count of blue pixels in each column */	
-	for (x = 0; x < width; x++) {	
+	for (x = left_limit; x < right_limit; x++) {	
 		imgPtr = shMemPtr + x * 4; // Offset to the xth column in the firts row
-		for (y = 0; y < height; y++) {		
-			if(*imgPtr > (MAGNITUDE * (*(imgPtr+1))) && *imgPtr > (MAGNITUDE * (*(imgPtr+2))))
+		for (y = top_limit; y < bottom_limit; y++) {		
+			if(0xFF > (MAGNITUDE*2 * (*(imgPtr+1))) && 0xFF > (MAGNITUDE*2 * (*(imgPtr+1))) && 0xFF > (MAGNITUDE*2 * (*(imgPtr+2))))
 				pixCountX[x]+=1;
 			
 			/* Step to teh same pixel i the next row */
 			imgPtr+=4*width;
 		}		
-	}
-	
-	if(FINDBLUE_DBG) {
-		printf("\n Image processing results - raw - by row :");
-		for(x=0; x<MAX_WIDTH; x++)
-			printf("%5d ",pixCountX[x]);
-		printf("\n---------------------------\n");
-		
-		printf("\n Image processing results - raw - by column :");
-		for(y=0; y<MAX_HEIGHT; y++)
-			printf("%5d ",pixCountY[y]);
-		printf("\n---------------------------\n");
 	}
 	
 	/* Apply a simple averaging filter to pixe count */
@@ -576,20 +580,7 @@ int imgDetectObstacles(unsigned char * shMemPtr, uint16_t width, uint16_t height
 		}
 		pixCountY[y] = pixCountY[y] / LPF_SAMPLES; 
 	}
-	
-	if(FINDBLUE_DBG) {
-		printf("\n Image processing results - after filtering - by row:");
-		for(x=0; x < (MAX_WIDTH - LPF_SAMPLES); x++)
-			printf("%5d ",pixCountX[x]);
-		printf("\n---------------------------\n");
-		
-		printf("\n Image processing results - after filtering - by columnn:");
-		for(y=0; y < (MAX_HEIGHT - LPF_SAMPLES); y++)
-			printf("%5d ",pixCountY[y]);
-		printf("\n---------------------------\n");
-	}
-		
-		
+
 	/* Detect Center of Mass (just one object) */
 	*cm_x = -1; 	// By default not found
 	*cm_y = -1;		
@@ -612,6 +603,9 @@ int imgDetectObstacles(unsigned char * shMemPtr, uint16_t width, uint16_t height
 			break;
 		}
 	}	
+
+	// Percentage of the image that is occupied by the obstacle
+	*closeness = ((float)(out_edge - in_edge) / (float)(bottom_limit - top_limit)) * 100;
 			
 	/* Process edges to determine center of mass existence and position */ 		
 	/* If object in the left image edge */
@@ -620,15 +614,6 @@ int imgDetectObstacles(unsigned char * shMemPtr, uint16_t width, uint16_t height
 	
 	if((in_edge >= 0) && (out_edge >= 0))
 		*cm_y = (out_edge-in_edge)/2+in_edge;
-		
-	if(FINDBLUE_DBG) {
-		if(cm_y >= 0) {
-			printf("Blue square center of mass y = %d\n", *cm_y);
-		} else {
-			printf("Blue square center of mass y = NF\n");
-		}
-	}				
-	
 		
 	/* Detect XX CoM */
 	in_edge = -1;	// By default not found
@@ -655,15 +640,7 @@ int imgDetectObstacles(unsigned char * shMemPtr, uint16_t width, uint16_t height
 		in_edge = 0;
 	
 	if((in_edge >= 0) && (out_edge >= 0))
-		*cm_x = (out_edge-in_edge)/2+in_edge;
-		
-	if(FINDBLUE_DBG) {
-		if(cm_x >= 0) {
-			printf("Blue square center of mass x = %d\n", *cm_x);
-		} else {
-			printf("Blue square center of mass x = NF\n");
-		}
-	}					
+		*cm_x = (out_edge-in_edge)/2+in_edge;		
 		
 	/* Return with suitable error code */
 	if(*cm_x >= 0 && *cm_y >= 0)

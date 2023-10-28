@@ -4,7 +4,8 @@
 #include <string.h>
 #include <pthread.h>
 
-#include "cab.h"
+#include "./include/cab.h"
+#include "./include/threads.h"
 
 CAB *open_cab(int size, int num_of_tasks)
 {
@@ -28,28 +29,14 @@ CAB *open_cab(int size, int num_of_tasks)
 
 CAB_BUFFER *reserve(CAB* c)
 {
-    if (c->mrb == NULL){
-        printf("Error: no message\n");
-        return NULL;
-    }
-
-    // pthread_mutex_lock(c->mrb);
-
     CAB_BUFFER *p = c->mrb;
     c->free = p->next;
-
-    // pthread_mutex_unlock(c->mrb);
-
+    
     return p;
 }
 
 void put_mes(CAB *c, CAB_BUFFER *buffer)
 {
-    if (c->mrb == NULL){
-        printf("Error: no message\n");
-        return;
-    }
-
     if(c->mrb->use == 0) {
         c->mrb->next = c->free;
         c->free = c->mrb;
@@ -60,33 +47,20 @@ void put_mes(CAB *c, CAB_BUFFER *buffer)
 
 void *get_mes(CAB *c)
 {
-    if (c->mrb == NULL){
-        printf("Error: no message\n");
-        return NULL;
-    }
-
-    // pthread_mutex_lock(&c->mrb);
-
     CAB_BUFFER *p = c->mrb;
     p = c->mrb;
     p->use = p->use + 1;
-    
-    // pthread_mutex_unlock(&c->mrb);
 
     return p;
 }
 
 void unget(CAB *c, CAB_BUFFER *p)
 {
-    // pthread_mutex_lock(p);
-
     p->use = p->use - 1;
     if((p->use == 0) && (p != c->mrb)) {
         p->next = c->free;
         c->free = p;
     }
-
-    // pthread_mutex_unlock(p);
 }
 
 void delete_cab(CAB *c)
