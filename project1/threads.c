@@ -7,9 +7,11 @@
 pthread_t threads[50]; /* Thread identifiers */
 int thread_id[50]; /* Application-defined thread IDs */
 
+// CAB related threads
+
 void* getMessageFromCAB(THREAD_ARG* arg) {
     pthread_mutex_lock(&arg->mutex);
-    arg->content = get_mes(arg->cab);
+    arg->content = get_mes((CAB*)arg->source);
     pthread_mutex_unlock(&arg->mutex);
 
     if (arg->content == NULL){
@@ -22,7 +24,7 @@ void* getMessageFromCAB(THREAD_ARG* arg) {
 
 void* ungetMessageFromCAB(THREAD_ARG* arg) {
     pthread_mutex_lock(&arg->mutex);
-    unget(arg->cab, (CAB_BUFFER*)arg->content);
+    unget(arg->source, (CAB_BUFFER*)arg->content);
     pthread_mutex_unlock(&arg->mutex);
 
     return (void*) 1;
@@ -30,7 +32,7 @@ void* ungetMessageFromCAB(THREAD_ARG* arg) {
 
 void* putMessageOnCab(THREAD_ARG* arg, CAB_BUFFER* buffer, void* data) {
     pthread_mutex_lock(&arg->mutex);
-    put_mes(arg->cab, buffer, data);
+    put_mes((CAB*)arg->source, buffer, data);
     pthread_mutex_unlock(&arg->mutex);
 
     return (void*) 1;
@@ -38,7 +40,7 @@ void* putMessageOnCab(THREAD_ARG* arg, CAB_BUFFER* buffer, void* data) {
 
 void* reserveCab(THREAD_ARG* arg) {
     pthread_mutex_lock(&arg->mutex);
-    arg->content = (void*) reserve(arg->cab);
+    arg->content = (void*) reserve(arg->source);
     pthread_mutex_unlock(&arg->mutex);
 
     if (arg->content == NULL){
@@ -49,18 +51,24 @@ void* reserveCab(THREAD_ARG* arg) {
     return (void*) 1;
 }
 
-void initThreadArg(THREAD_ARG* arg, CAB* cab) {
+// Common Use Threads
+
+void* initThreadArg(THREAD_ARG* arg, CAB* cab) {
     arg->mutex = (pthread_mutex_t) PTHREAD_MUTEX_INITIALIZER;
-    arg->cab = cab;
+    arg->source = (void*)cab;
+
+    return (void *) 1;
 }
 
-void setThreadAttributes(pthread_attr_t* attr) {
+void* setThreadAttributes(pthread_attr_t* attr) {
 	pthread_attr_init(attr);
 	pthread_attr_setdetachstate(attr, PTHREAD_EXPLICIT_SCHED);
 	pthread_attr_setschedpolicy(attr, SCHED_RR);
+
+    return (void *) 1;
 }
 
-void setAllThreadSchedParam(pthread_attr_t* attr) {
+void* setAllThreadSchedParam(pthread_attr_t* attr) {
     // ImgDetectObstacle
     struct sched_param paramObstacleDetection;
 	pthread_attr_getschedparam(&attr, &paramObstacleDetection);
@@ -90,7 +98,24 @@ void setAllThreadSchedParam(pthread_attr_t* attr) {
     pthread_create(&threads[2], &attr, (void *)imgFindBlueSquare, &thread_id[3]);
     pthread_mutex_t imgFindBlueSquare_mutex;
     pthread_mutex_init(&imgFindBlueSquare_mutex, NULL);
+
+    return (void *) 1;
 }
 	
+// Real Time DB related threads
 
-	
+void* getMessageFromRTDB(THREAD_ARG* arg, DB* db) {
+    pthread_mutex_lock(&arg->mutex);
+    arg->content = getMostRecentData(db);
+    pthread_mutex_unlock(&arg->mutex);
+
+    return (void *) 1;
+}
+
+void* setMessageAtRTDB(THREAD_ARG* arg, int index) {
+    pthread_mutex_lock(&arg->mutex);
+    setBufferAtIndex((DB*)&arg->source, index, &arg->content);
+    pthread_mutex_unlock(&arg->mutex);
+
+    return (void *) 1;
+}
