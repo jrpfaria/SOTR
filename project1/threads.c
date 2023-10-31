@@ -119,3 +119,28 @@ void* setMessageAtRTDB(THREAD_ARG* arg, int index) {
 
     return (void *) 1;
 }
+
+void* dispatchImageProcessingFunctions(THREAD_ARG* arg, THREAD_ARG* db_arg, pthread_mutex_t proc, long frame_number,  uint16_t width, uint16_t height, int16_t *cm_x, int16_t *cm_y) {
+    pthread_mutex_lock(&proc);
+    if (frame_number % 2 == 0){
+        getMessageFromCAB(arg);
+        imgDetectObstacles((unsigned char*)arg->content, width, height, *cm_x, *cm_y);
+        printf("frame number: %ld, detecting obstacles\n", frame_number);
+        setMessageAtRTDB(&db_arg, 0);
+    }
+    if (frame_number % 3 == 0){
+        getMessageFromCAB((CAB*)arg->source);
+        imgEdgeDetection((unsigned char*)arg->content, width, height, *cm_x, *cm_y);
+        printf("frame number: %ld, detecting edges\n", frame_number);
+        setMessageAtRTDB(&db_arg, 1);
+    }
+    if (frame_number % 5 == 0){
+        getMessageFromCAB((CAB*)arg->source);
+        imgFindBlueSquare((unsigned char*)arg->content, width, height, *cm_x, *cm_y);
+        printf("frame number: %ld\n, detecting blue squares", frame_number);
+        setMessageAtRTDB(&db_arg, 2);
+    }
+    pthread_mutex_unlock(&proc);
+
+    return (void *) 1;
+}

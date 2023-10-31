@@ -4,19 +4,6 @@
 #define MAX_HEIGHT	1024	/* Sets the max allowed image height */
 #define IMGBYTESPERPIXEL 4  /* Number of bytes per pixel in the image */
 
-
-void dispatchImageProcessingFunctions(long frame_number){
-    if (frame_number % 2 == 0){
-        
-    }
-    if (frame_number % 3 == 0){
-        printf("frame number: %ld, detecting edges\n", frame_number);
-    }
-    if (frame_number % 5 == 0){
-        printf("frame number: %ld\n, detecting blue squares", frame_number);
-    }
-}
-
 /* Detects the center of mass of a blue square (or something similar) */
 int imgFindBlueSquare(unsigned char * shMemPtr, uint16_t width, uint16_t height, int16_t *cm_x, int16_t *cm_y){
 	#define FINDBLUE_DBG 	0	// Flag to activate output of image processing debug info 

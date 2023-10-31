@@ -19,10 +19,12 @@ void* ungetMessageFromCAB(THREAD_ARG*);
 void* putMessageOnCab(THREAD_ARG*, CAB_BUFFER*, void*);
 void* reserveCab(THREAD_ARG*);
 
-void initThreadArg(THREAD_ARG*, CAB*);
-void setThreadParam(pthread_attr_t*);
+void* initThreadArg(THREAD_ARG*, CAB*);
+void* setThreadParam(pthread_attr_t*);
 
 void* getMessageFromRTDB(THREAD_ARG*);
-void setMessageAtRTDB(THREAD_ARG*, int);
+void* setMessageAtRTDB(THREAD_ARG*, int);
+
+void* dispatchImageProcessingFunctions(THREAD_ARG*, THREAD_ARG*, pthread_mutex_t, long, uint16_t, uint16_t, uint16_t*, uint16_t*);		
 
 #endif

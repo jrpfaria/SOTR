@@ -136,6 +136,9 @@ int main(int argc, char* argv[])
 	int size_of_data = width*height*IMGBYTESPERPIXEL;
 	CAB *cab = open_cab(size_of_data, num_of_tasks);
 
+	// Open RTDB Structure
+	DB *db = initDataBase(size_of_data, num_of_tasks);
+
 	// Set Thread Attributes
 	pthread_attr_t attr;
 	setThreadParam(&attr);
@@ -198,7 +201,16 @@ int main(int argc, char* argv[])
 		return -1;
 	}
 	
-	
+
+	// Initialize Auxiliar Thread Structures
+	THREAD_ARG cab_arg;
+	initThreadArg(&cab_arg, &cab);
+
+	THREAD_ARG db_arg;
+	initThreadArg(&db_arg, &db);	
+
+	pthread_mutex_t proc = PTHREAD_MUTEX_INITIALIZER;
+
   	/* Get data from shmem and show it */
   	i=0;
 	long frame_counter = 0;
@@ -214,25 +226,16 @@ int main(int argc, char* argv[])
 			printf("[imageViewer] New image in shmem signaled [%d]\n\r", i++);			
 			
 			/* Here you can call image processing functions. E.g. */
+			reserveCab(&cab_arg);
+			putMessageOnCab(&cab_arg, (CAB_BUFFER*) cab_arg.content, (void*) shMemPtr);
+
+			void* processed_image = dispatchImageProcessingFunctions(&cab_arg, &db_arg, proc, frame_counter++, width, height, &cm_x, &cm_y);		
 			
-			THREAD_ARG arg;
-			initThreadArg(&arg, &cab);
+			ungetMessageFromCAB(&cab_arg);
 
-			reserveCab(&arg);
-			putMessageOnCab(&arg, (CAB_BUFFER*) arg.content, (void*) shMemPtr);
-			ungetMessageFromCAB(&arg);
-
-			dispatchImageProcessingFunctions(frame_counter++);
-
-			// /* Should swap this function call to threads, as well as implement other threads*/
-			// if(!imgDetectObstacles(shMemPtr, width, height, &cm_x, &cm_y)) {
-			// 	printf("Obstacle found at (%3d,%3d), %3f%% close\n", cm_x, cm_y);
-			// } else {
-			// 	printf("Obstacle not found\n");
-			// }		
-			
 			/* Then display the message via SDL */
-			memcpy(pixels,shMemPtr,width*height*IMGBYTESPERPIXEL);
+			// TO DO: get this into a thread to access images present on rtdb and display them
+			memcpy(pixels,shMemPtr,size_of_data);
 			SDL_RenderClear(renderer);
 			SDL_UpdateTexture(screen_texture, NULL, pixels, width * IMGBYTESPERPIXEL );
 			SDL_RenderCopy(renderer, screen_texture, NULL, NULL);
