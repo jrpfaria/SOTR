@@ -21,7 +21,7 @@ CAB *open_cab(int, int);
 
 CAB_BUFFER *reserve(CAB*);
 
-void put_mes(CAB*, CAB_BUFFER*);
+void put_mes(CAB*, CAB_BUFFER*, void*);
 
 void *get_mes(CAB*);
 

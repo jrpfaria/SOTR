@@ -42,7 +42,7 @@ CAB_BUFFER *reserve(CAB* c)
     return p;
 }
 
-void put_mes(CAB *c, CAB_BUFFER *buffer)
+void put_mes(CAB *c, CAB_BUFFER* buffer, void* data)
 {
     if(c->mrb->use == 0) {
         c->mrb->next = c->free;
@@ -50,15 +50,13 @@ void put_mes(CAB *c, CAB_BUFFER *buffer)
     }
     
     c->mrb = buffer;
+    memcpy(buffer->data, data, c->buffer_size);
 }
 
 void *get_mes(CAB *c)
 {
-    CAB_BUFFER *p = c->mrb;
-    p = c->mrb;
-    p->use = p->use + 1;
-
-    return p;
+    c->mrb->use++;
+    return c->mrb->data;
 }
 
 void unget(CAB *c, CAB_BUFFER *p)
