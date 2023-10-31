@@ -209,10 +209,6 @@ int main(int argc, char* argv[])
             if (event.type == SDL_QUIT) exit(0);
         }    	
         
-		//Image img = Scheduler.getImage();
-		//imgDetectObstacler(img, width, height, etc,etc,etc);
-		//render img
-
         /* Check if new image arrived ...*/
         if (!sem_wait(newDataSemAddr)) { /* sem_wait returns 0 on success */
 			printf("[imageViewer] New image in shmem signaled [%d]\n\r", i++);			
@@ -229,8 +225,8 @@ int main(int argc, char* argv[])
 			dispatchImageProcessingFunctions(frame_counter++);
 
 			// /* Should swap this function call to threads, as well as implement other threads*/
-			// if(!imgDetectObstacles(shMemPtr, width, height, &cm_x, &cm_y, &closeness)) {
-			// 	printf("Obstacle found at (%3d,%3d), %3f%% close\n", cm_x, cm_y, closeness);
+			// if(!imgDetectObstacles(shMemPtr, width, height, &cm_x, &cm_y)) {
+			// 	printf("Obstacle found at (%3d,%3d), %3f%% close\n", cm_x, cm_y);
 			// } else {
 			// 	printf("Obstacle not found\n");
 			// }		

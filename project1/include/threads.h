@@ -4,6 +4,7 @@
 #include <pthread.h>
 #include "rtdb.h"
 #include "cab.h"
+#include "processing.h"
 
 typedef struct thread_arg THREAD_ARG;
 

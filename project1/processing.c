@@ -7,7 +7,7 @@
 
 void dispatchImageProcessingFunctions(long frame_number){
     if (frame_number % 2 == 0){
-        printf("frame number: %ld, detecting obstacle\n", frame_number);
+        
     }
     if (frame_number % 3 == 0){
         printf("frame number: %ld, detecting edges\n", frame_number);
@@ -46,16 +46,6 @@ int imgFindBlueSquare(unsigned char * shMemPtr, uint16_t width, uint16_t height,
 	for(y=0; y<MAX_HEIGHT; y++)
 		pixCountY[y]=0;
 		
-	/* Process image - find count of blue pixels in each row */	
-	/* Note that in memory images show as follows (in pixels, each pixel BGRF): */
-	/* Pixel in a row show up in contiguous memory addresses */
-	/*	Start from top-left corner */
-	/* (0,0) (1,0) (2,0) (3,0) ... (width-1,0)*/
-	/* (0,1) (1,1) (2,1) (3,1) ... */
-	/* (0,2) (1,2) (2,2) (3,2) ... */
-	/*  ...   ...   ...            */
-	/* (0,height-1) (1,height-1) (2, height-1) ... (height-1, width-1)*/
-	
 	imgPtr = shMemPtr;
 	for (y = 0; y < height; ++y) {
 		if(FINDBLUE_DBG) printf("\n");
@@ -254,7 +244,7 @@ int imgEdgeDetection(unsigned char * shMemPtr, uint16_t width, uint16_t height, 
 }
 
 /* Process image to detect obstacles */
-int imgDetectObstacles(unsigned char * shMemPtr, uint16_t width, uint16_t height, int16_t *cm_x, int16_t *cm_y, float *closeness){
+int imgDetectObstacles(unsigned char * shMemPtr, uint16_t width, uint16_t height, int16_t *cm_x, int16_t *cm_y){
 	#define FINDBLUE_DBG 	0	// Flag to activate output of image processing debug info 
 	
 	/* Note: the following settings are strongly dependent on illumination intensity and color, ...*/
@@ -288,17 +278,7 @@ int imgDetectObstacles(unsigned char * shMemPtr, uint16_t width, uint16_t height
 	
 	for(y=0; y<MAX_HEIGHT; y++)
 		pixCountY[y]=0;
-		
-	/* Process image - find count of blue pixels in each row */	
-	/* Note that in memory images show as follows (in pixels, each pixel BGRF): */
-	/* Pixel in a row show up in contiguous memory addresses */
-	/*	Start from top-left corner */
-	/* (0,0) (1,0) (2,0) (3,0) ... (width-1,0)*/
-	/* (0,1) (1,1) (2,1) (3,1) ... */
-	/* (0,2) (1,2) (2,2) (3,2) ... */
-	/*  ...   ...   ...            */
-	/* (0,height-1) (1,height-1) (2, height-1) ... (height-1, width-1)*/
-	
+
 	imgPtr = shMemPtr;
 
 	imgPtr += 4 * top_limit * 4 * left_limit;
