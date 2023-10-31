@@ -24,7 +24,7 @@ DB* initDataBase(int size_of_data, int amount_of_buffers) {
 }
 
 void* getMostRecentData(DB* dbPtr) {
-    return dbPtr + (dbPtr->mru * sizeof(DB_BUFFER));
+    return dbPtr->buffer + (dbPtr->mru * sizeof(DB_BUFFER));
 }
 
 void setBufferAtIndex(DB* dbPtr, int index, void* data) {
@@ -32,7 +32,7 @@ void setBufferAtIndex(DB* dbPtr, int index, void* data) {
         fprintf(stderr, "Error [rtdb-SetBufferAtIndex]: index out of bounds\n");
         return;
     }
-    DB_BUFFER* buffer = dbPtr + (index * sizeof(DB_BUFFER));
+    DB_BUFFER* buffer = dbPtr->buffer + (index * sizeof(DB_BUFFER));
     memcpy(buffer->data, data, dbPtr->size_of_data);
     dbPtr->mru = index;
 }

@@ -204,10 +204,10 @@ int main(int argc, char* argv[])
 
 	// Initialize Auxiliar Thread Structures
 	THREAD_ARG cab_arg;
-	initThreadArg(&cab_arg, &cab);
+	initThreadArg(&cab_arg, (void *) cab);
 
 	THREAD_ARG db_arg;
-	initThreadArg(&db_arg, &db);	
+	initThreadArg(&db_arg, (void *) db);	
 
 	pthread_mutex_t proc = PTHREAD_MUTEX_INITIALIZER;
 
@@ -229,7 +229,7 @@ int main(int argc, char* argv[])
 			reserveCab(&cab_arg);
 			putMessageOnCab(&cab_arg, (CAB_BUFFER*) cab_arg.content, (void*) shMemPtr);
 
-			void* processed_image = dispatchImageProcessingFunctions(&cab_arg, &db_arg, proc, frame_counter++, width, height, &cm_x, &cm_y);		
+			dispatchImageProcessingFunctions(&cab_arg, &db_arg, proc, frame_counter++, width, height, &cm_x, &cm_y);		
 			
 			ungetMessageFromCAB(&cab_arg);
 
