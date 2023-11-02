@@ -45,9 +45,6 @@
                             /* e.g. RGB888 in SDL is 32bit word aligned, using 4 bytes */
 //#define MANUALCOPY			/* Set to make a byte-per-byte copy, instead of memcpy*/
 
-#define MAX_WIDTH	1280	/* Sets the max allowed image width */
-#define MAX_HEIGHT	1024	/* Sets the max allowed image height */
-
 /* Global variables */
 unsigned char appName[]="imageDisplay"; /* Application name*/
 
@@ -86,7 +83,6 @@ int main(int argc, char* argv[])
 		err; /* Generic return code variable */ 		
 	unsigned char * imgPtr;
 	int16_t cm_x, cm_y;
-	float closeness;
 		
 
 	/* Process input args */	
@@ -200,14 +196,13 @@ int main(int argc, char* argv[])
 		printf("[semaphore creation] Error creating semaphore \n\r");
 		return -1;
 	}
-	
 
 	// Initialize Auxiliar Thread Structures
 	THREAD_ARG cab_arg;
 	initThreadArg(&cab_arg, (void *) cab);
 
 	THREAD_ARG db_arg;
-	initThreadArg(&db_arg, (void *) db);	
+	initThreadArg(&db_arg, (void *) db);
 
 	pthread_mutex_t proc = PTHREAD_MUTEX_INITIALIZER;
 
@@ -215,7 +210,6 @@ int main(int argc, char* argv[])
   	i=0;
 	long frame_counter = 0;
 	while (1) {
-
 		/* Process SDL events. In this case just termination */
 		while (SDL_PollEvent(&event)) {
             if (event.type == SDL_QUIT) exit(0);
@@ -226,16 +220,20 @@ int main(int argc, char* argv[])
 			printf("[imageViewer] New image in shmem signaled [%d]\n\r", i++);			
 			
 			/* Here you can call image processing functions. E.g. */
+			printf("Before reserveCab()\n");
 			reserveCab(&cab_arg);
+
+			printf("Before putMessageOnCab()\n");
 			putMessageOnCab(&cab_arg, (CAB_BUFFER*) cab_arg.content, (void*) shMemPtr);
 
+			printf("Starting dispatchImageProcessingFunctions with width: %d and height: %d\n\n", width, height);
 			dispatchImageProcessingFunctions(&cab_arg, &db_arg, proc, frame_counter++, width, height, &cm_x, &cm_y);		
 			
 			ungetMessageFromCAB(&cab_arg);
 
 			/* Then display the message via SDL */
-			// TO DO: get this into a thread to access images present on rtdb and display them
-			memcpy(pixels,shMemPtr,size_of_data);
+			// Copy the image from RTDB to the SDL texture
+			memcpy(pixels,getMessageFromRTDB(&db_arg),size_of_data);
 			SDL_RenderClear(renderer);
 			SDL_UpdateTexture(screen_texture, NULL, pixels, width * IMGBYTESPERPIXEL );
 			SDL_RenderCopy(renderer, screen_texture, NULL, NULL);

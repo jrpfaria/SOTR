@@ -11,13 +11,15 @@ DB* initDataBase(int size_of_data, int amount_of_buffers) {
     db->mru = -1;
     db->buffer = (DB_BUFFER*) malloc(sizeof(DB_BUFFER) * amount_of_buffers);
 
-    DB_BUFFER* buffer = db->buffer;
+    if (db == NULL || db->buffer == NULL){
+        printf("Error: malloc failed in RTDB\n");
+        return NULL;
+    }
 
     // Initialize CAB_BUFFER struct
     for(int i = 0; i < amount_of_buffers; i++) {
-        buffer->next = (i != amount_of_buffers - 1) ? buffer + sizeof(DB_BUFFER) : NULL;
-        buffer->data = NULL;
-        buffer = buffer->next;        
+        db->buffer[i].next = &db->buffer[i+1];
+        db->buffer[i].data = NULL;
     }
 
     return db;
@@ -32,7 +34,28 @@ void setBufferAtIndex(DB* dbPtr, int index, void* data) {
         fprintf(stderr, "Error [rtdb-SetBufferAtIndex]: index out of bounds\n");
         return;
     }
-    DB_BUFFER* buffer = dbPtr->buffer + (index * sizeof(DB_BUFFER));
-    memcpy(buffer->data, data, dbPtr->size_of_data);
+
+    if(dbPtr->buffer[index].data == NULL) {
+        dbPtr->buffer[index].data = malloc(dbPtr->size_of_data);
+    }
+
+    void* newBufferData = malloc(dbPtr->size_of_data);
+    if(newBufferData == NULL) {
+        printf("Error allocating memory (setBufferAtIndex)\n");
+        return;
+    }
+
+    printf("before memcpy\n");
+    
+    printf("data: %p\n", data);
+    printf("dbptr->size_of_data: %d\n", dbPtr->size_of_data);
+    memcpy(newBufferData, data, dbPtr->size_of_data);
+    printf("before aux\n");
+    void* aux = dbPtr->buffer[index].data;
+    printf("before assignment\n");
+    dbPtr->buffer[index].data = newBufferData;
+    printf("before free\n");
+    free(aux);
+
     dbPtr->mru = index;
 }

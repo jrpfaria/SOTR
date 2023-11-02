@@ -1,11 +1,7 @@
 #include "./include/processing.h"
 
-#define MAX_WIDTH	1280	/* Sets the max allowed image width */
-#define MAX_HEIGHT	1024	/* Sets the max allowed image height */
-#define IMGBYTESPERPIXEL 4  /* Number of bytes per pixel in the image */
-
 /* Detects the center of mass of a blue square (or something similar) */
-int imgFindBlueSquare(unsigned char * shMemPtr, uint16_t width, uint16_t height, int16_t *cm_x, int16_t *cm_y){
+int imgFindBlueSquare(unsigned char * shMemPtr, int width, int height, int16_t *cm_x, int16_t *cm_y){
 	#define FINDBLUE_DBG 	0	// Flag to activate output of image processing debug info 
 	
 	/* Note: the following settings are strongly dependent on illumination intensity and color, ...*/
@@ -187,7 +183,7 @@ int imgFindBlueSquare(unsigned char * shMemPtr, uint16_t width, uint16_t height,
 }
 
 /* Process image to turn image into gray scale*/
-int imgEdgeDetection(unsigned char * shMemPtr, uint16_t width, uint16_t height, int16_t *cm_x, int16_t *cm_y){
+int imgEdgeDetection(unsigned char * shMemPtr, int width, int height, int16_t *cm_x, int16_t *cm_y){
 	/* Variables */
 	unsigned char *imgPtr;		/* Pointer to image */
 	int i,x,y;					/* Indexes */
@@ -231,7 +227,7 @@ int imgEdgeDetection(unsigned char * shMemPtr, uint16_t width, uint16_t height, 
 }
 
 /* Process image to detect obstacles */
-int imgDetectObstacles(unsigned char * shMemPtr, uint16_t width, uint16_t height, int16_t *cm_x, int16_t *cm_y){
+int imgDetectObstacles(unsigned char * shMemPtr, int width, int height, int16_t *cm_x, int16_t *cm_y){
 	#define FINDBLUE_DBG 	0	// Flag to activate output of image processing debug info 
 	
 	/* Note: the following settings are strongly dependent on illumination intensity and color, ...*/
@@ -253,9 +249,11 @@ int imgDetectObstacles(unsigned char * shMemPtr, uint16_t width, uint16_t height
 	uint16_t top_limit = 0;
 	uint16_t bottom_limit = height;
 
+	printf("PROCESSING height: %d, width: %d\n", height, width);
+
 	/* Check image size */
 	if(width > MAX_WIDTH || height > MAX_HEIGHT) {
-		printf("[imgFindBlueSquare]ERROR: image size exceeds the limits allowed\n\r");
+		printf("[imgDetectObjects]ERROR: image size exceeds the limits allowed\n\r");
 		return -1;
 	}
 	

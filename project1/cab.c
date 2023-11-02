@@ -13,7 +13,7 @@ CAB *open_cab(int size, int num_of_tasks)
     CAB_BUFFER* buffer = malloc(sizeof(CAB_BUFFER) * (++num_of_tasks));
 
     if (c == NULL || buffer == NULL){
-        printf("Error: malloc failed\n");
+        printf("Error: malloc failed in CAB\n");
         return NULL;
     }
 
@@ -25,32 +25,46 @@ CAB *open_cab(int size, int num_of_tasks)
 
     // Initialize CAB_BUFFER struct
     for(int i = 0; i < num_of_tasks; i++) {
-        buffer->next = (i != num_of_tasks - 1) ? buffer + sizeof(CAB_BUFFER) : NULL;
-        buffer->use = 0;
-        buffer->data = NULL;
-        buffer = buffer->next;        
+        c->mrb[i].next = &c->mrb[i+1];
+        c->mrb[i].use = 0;
+        c->mrb[i].data = NULL;
+
+        // buffer->next = (i != num_of_tasks - 1) ? buffer + sizeof(CAB_BUFFER) : NULL;
+        // buffer->use = 0;
+        // buffer->data = NULL;
+        // buffer = buffer->next;        
     }
+
+    c->mrb[num_of_tasks - 1].next = NULL;
 
     return c;
 }
 
 CAB_BUFFER *reserve(CAB* c)
 {
-    CAB_BUFFER *p = c->mrb;
-    c->free = p->next;
-    
+    CAB_BUFFER* p = NULL;
+    for (int i = 0; i < c->max_buffer; i++)
+        if (c->mrb[i].use == 0) 
+            p = &c->mrb[i];
     return p;
 }
 
 void put_mes(CAB *c, CAB_BUFFER* buffer, void* data)
 {
-    if(c->mrb->use == 0) {
-        c->mrb->next = c->free;
-        c->free = c->mrb;
+    if(buffer->data == NULL) {
+        buffer->data = malloc(c->buffer_size);
     }
+    void* newBufferData = malloc(c->buffer_size);
+    if(newBufferData == NULL) {
+        printf("Error allocating memory (cab-put_mes)");
+    }
+    memcpy(newBufferData, data, c->buffer_size);
+    void* aux = buffer->data;
+    buffer->data = newBufferData;
+    free(aux);
     
+    printf("put_mes\n");
     c->mrb = buffer;
-    memcpy(buffer->data, data, c->buffer_size);
 }
 
 void *get_mes(CAB *c)

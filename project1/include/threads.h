@@ -26,6 +26,6 @@ void* setAllThreadSchedParam(pthread_attr_t*);
 void* getMessageFromRTDB(THREAD_ARG*);
 void* setMessageAtRTDB(THREAD_ARG*, int);
 
-void* dispatchImageProcessingFunctions(THREAD_ARG*, THREAD_ARG*, pthread_mutex_t, long, uint16_t, uint16_t, uint16_t*, uint16_t*);
+void* dispatchImageProcessingFunctions(THREAD_ARG*, THREAD_ARG*, pthread_mutex_t, long, int, int, uint16_t*, uint16_t*);
 
 #endif
