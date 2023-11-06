@@ -31,10 +31,6 @@ void* ungetMessageFromCAB(THREAD_ARG* arg) {
 }
 
 void* putMessageOnCab(THREAD_ARG* arg, CAB_BUFFER* buffer, void* data) {
-    printf("((CAB*) cab_arg.source)->buffer_size: %d\n", ((CAB*) arg->source)->buffer_size);
-	printf("((CAB*) cab_arg.source)->max_buffer: %d\n", ((CAB*) arg->source)->max_buffer);
-	printf("((CAB*) cab_arg.source)->mrb->use): %d\n", ((CAB*) arg->source)->mrb->use);
-
     pthread_mutex_lock(&arg->mutex);
     put_mes((CAB*)arg->source, buffer, data);
     pthread_mutex_unlock(&arg->mutex);
@@ -128,33 +124,46 @@ void* putMessageInRTDB(THREAD_ARG* arg, int index) {
     return (void *) 1;
 }
 
-void* dispatchImageProcessingFunctions(THREAD_ARG* arg, THREAD_ARG* db_arg, pthread_mutex_t proc, long frame_number,  int width, int height, uint16_t *cm_x, uint16_t *cm_y) {
-    pthread_mutex_lock(&proc);
+void* dispatchImageProcessingFunctions(THREAD_ARG* arg, THREAD_ARG* db_arg, long frame_number, THREAD_INPUTS* inputs) {
     if (frame_number % 2 == 0) {
         getMessageFromCAB(arg);
-        // print height and width to debug
-        imgDetectObstacles((unsigned char*)arg->content, width, height, cm_x, cm_y);
+        inputs->source = arg->content;
+        pthread_create(&threads[0], NULL, (void *)imgDetectObstaclesWrapper, inputs);
+        pthread_join(threads[0], NULL);
         db_arg->content = arg->content;
         printf("frame number: %ld, detecting obstacles\n", frame_number);
         // Save results to rtdb
         putMessageInRTDB(db_arg, 0);
     }
     if (frame_number % 3 == 0) {
-        getMessageFromCAB((THREAD_ARG*) arg->source);
-        imgEdgeDetection((unsigned char*)arg->content, width, height, cm_x, cm_y);
+        getMessageFromCAB(arg);
+        inputs->source = arg->content;
+        pthread_create(&threads[1], NULL, (void *)imgEdgeDetectionWrapper, inputs);
+        pthread_join(threads[1], NULL);
         db_arg->content = arg->content;
         printf("frame number: %ld, detecting edges\n", frame_number);
         // Save results to rtdb
         putMessageInRTDB(db_arg, 1);
     }
     if (frame_number % 5 == 0) {
-        getMessageFromCAB((THREAD_ARG*) arg->source);
-        imgFindBlueSquare((unsigned char*)arg->content, width, height, cm_x, cm_y);
+        getMessageFromCAB(arg);
+        inputs->source = arg->content;
+        pthread_create(&threads[2], NULL, (void *)imgFindBlueSquareWrapper, inputs);
+        pthread_join(threads[2], NULL);
+        db_arg->content = arg->content;
         printf("frame number: %ld\n, detecting blue squares", frame_number);
         // Save results to rtdb
         putMessageInRTDB(db_arg, 2);
     }
-    pthread_mutex_unlock(&proc);
+
+    return (void *) 1;
+}
+
+void* setThreadInputs(THREAD_INPUTS* args, int height, int width, uint16_t* cm_x, uint16_t* cm_y) {
+    args->height = height;
+    args->width = width;
+    args->cm_x = cm_x;
+    args->cm_y = cm_y;
 
     return (void *) 1;
 }

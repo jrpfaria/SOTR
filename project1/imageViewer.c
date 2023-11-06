@@ -135,6 +135,9 @@ int main(int argc, char* argv[])
 	// Open RTDB Structure
 	DB *db = initDataBase(size_of_data, num_of_tasks);
 
+	THREAD_INPUTS* inputs = malloc(sizeof(THREAD_INPUTS));
+	setThreadInputs(inputs, height, width, &cm_x, &cm_y);
+
 	// Set Thread Attributes
 	pthread_attr_t attr;
 	setThreadParam(&attr);
@@ -204,8 +207,6 @@ int main(int argc, char* argv[])
 	THREAD_ARG db_arg;
 	initThreadArg(&db_arg, (void *) db);
 
-	pthread_mutex_t proc = PTHREAD_MUTEX_INITIALIZER;
-
   	/* Get data from shmem and show it */
   	i=0;
 	long frame_counter = 0;
@@ -227,13 +228,13 @@ int main(int argc, char* argv[])
 			putMessageOnCab(&cab_arg, (CAB_BUFFER*) cab_arg.content, (void*) shMemPtr);
 
 			printf("Starting dispatchImageProcessingFunctions with width: %d and height: %d\n\n", width, height);
-			dispatchImageProcessingFunctions(&cab_arg, &db_arg, proc, frame_counter++, width, height, &cm_x, &cm_y);		
+			dispatchImageProcessingFunctions(&cab_arg, &db_arg, frame_counter++, inputs);		
 			
 			ungetMessageFromCAB(&cab_arg);
 
 			/* Then display the message via SDL */
 			// Copy the image from RTDB to the SDL texture
-			memcpy(pixels,getMessageFromRTDB(&db_arg),size_of_data);
+			memcpy(pixels,(unsigned char*)getMessageFromRTDB(&db_arg),size_of_data);
 			SDL_RenderClear(renderer);
 			SDL_UpdateTexture(screen_texture, NULL, pixels, width * IMGBYTESPERPIXEL );
 			SDL_RenderCopy(renderer, screen_texture, NULL, NULL);

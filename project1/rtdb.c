@@ -26,10 +26,15 @@ DB* initDataBase(int size_of_data, int amount_of_buffers) {
 }
 
 void* getMostRecentData(DB* dbPtr) {
-    return dbPtr->buffer + (dbPtr->mru * sizeof(DB_BUFFER));
+    printf("HELLOOOOOOOO!\n");
+    return dbPtr->buffer[dbPtr->mru].data;
 }
 
 void setBufferAtIndex(DB* dbPtr, int index, void* data) {
+    if (data == (void*)NULL)
+        fprintf(stderr, "Error [rtdb-SetBufferAtIndex]: data is NULL\n");
+        return;
+    
     if (index >= dbPtr->amount_of_buffers) {
         fprintf(stderr, "Error [rtdb-SetBufferAtIndex]: index out of bounds\n");
         return;
@@ -45,16 +50,9 @@ void setBufferAtIndex(DB* dbPtr, int index, void* data) {
         return;
     }
 
-    printf("before memcpy\n");
-    
-    printf("data: %p\n", data);
-    printf("dbptr->size_of_data: %d\n", dbPtr->size_of_data);
     memcpy(newBufferData, data, dbPtr->size_of_data);
-    printf("before aux\n");
     void* aux = dbPtr->buffer[index].data;
-    printf("before assignment\n");
     dbPtr->buffer[index].data = newBufferData;
-    printf("before free\n");
     free(aux);
 
     dbPtr->mru = index;

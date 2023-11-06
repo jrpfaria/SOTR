@@ -27,12 +27,7 @@ CAB *open_cab(int size, int num_of_tasks)
     for(int i = 0; i < num_of_tasks; i++) {
         c->mrb[i].next = &c->mrb[i+1];
         c->mrb[i].use = 0;
-        c->mrb[i].data = NULL;
-
-        // buffer->next = (i != num_of_tasks - 1) ? buffer + sizeof(CAB_BUFFER) : NULL;
-        // buffer->use = 0;
-        // buffer->data = NULL;
-        // buffer = buffer->next;        
+        c->mrb[i].data = NULL;    
     }
 
     c->mrb[num_of_tasks - 1].next = NULL;

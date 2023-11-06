@@ -371,3 +371,21 @@ int imgDetectObstacles(unsigned char * shMemPtr, int width, int height, int16_t 
 	else
 		return -1; // No objecty
 }
+
+/* Wrapper for imgFindBlueSquare */
+int imgFindBlueSquareWrapper(void* args) {
+	THREAD_INPUTS* ti = (THREAD_INPUTS*) args;
+	return imgFindBlueSquare((unsigned char*)ti->source, ti->width, ti->height, ti->cm_x, ti->cm_y);
+}
+
+/* Wrapper for imgEdgeDetection */
+int imgEdgeDetectionWrapper(void* args) {
+	THREAD_INPUTS* ti = (THREAD_INPUTS*) args;
+	return imgEdgeDetection((unsigned char*)ti->source, ti->width, ti->height, ti->cm_x, ti->cm_y);
+}
+
+/* Wrapper for imgDetectObstacles */
+int imgDetectObstaclesWrapper(void* args) {
+	THREAD_INPUTS* ti = (THREAD_INPUTS*) args;
+	return imgDetectObstacles((unsigned char*)ti->source, ti->width, ti->height, ti->cm_x, ti->cm_y);
+}
