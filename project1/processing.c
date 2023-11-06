@@ -249,8 +249,6 @@ int imgDetectObstacles(unsigned char * shMemPtr, int width, int height, int16_t 
 	uint16_t top_limit = 0;
 	uint16_t bottom_limit = height;
 
-	printf("PROCESSING height: %d, width: %d\n", height, width);
-
 	/* Check image size */
 	if(width > MAX_WIDTH || height > MAX_HEIGHT) {
 		printf("[imgDetectObjects]ERROR: image size exceeds the limits allowed\n\r");

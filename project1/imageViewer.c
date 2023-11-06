@@ -234,11 +234,13 @@ int main(int argc, char* argv[])
 
 			/* Then display the message via SDL */
 			// Copy the image from RTDB to the SDL texture
-			memcpy(pixels,(unsigned char*)getMessageFromRTDB(&db_arg),size_of_data);
+			unsigned char * imageToDisplay = (unsigned char*)getMessageFromRTDB(&db_arg);
+			// segfault here
+			memcpy(pixels,imageToDisplay,size_of_data);
 			SDL_RenderClear(renderer);
 			SDL_UpdateTexture(screen_texture, NULL, pixels, width * IMGBYTESPERPIXEL );
 			SDL_RenderCopy(renderer, screen_texture, NULL, NULL);
-			SDL_RenderPresent(renderer);			
+			SDL_RenderPresent(renderer);
 			
 		} else {
 			printf("[imageViewer] Error on sem_wait\n\r");

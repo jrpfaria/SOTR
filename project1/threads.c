@@ -115,12 +115,8 @@ void* getMessageFromRTDB(THREAD_ARG* arg) {
 
 void* putMessageInRTDB(THREAD_ARG* arg, int index) {
 	pthread_mutex_lock(&arg->mutex);
-    printf("segfault here\n");
     setBufferAtIndex((DB*) arg->source, index, &arg->content);
     pthread_mutex_unlock(&arg->mutex);
-
-    printf("segfault not in putMessageInRTDB\n");
-
     return (void *) 1;
 }
 
