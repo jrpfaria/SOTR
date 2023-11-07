@@ -34,12 +34,12 @@ void* reserveCab(THREAD_ARG*);
 
 void* initThreadArg(THREAD_ARG*, void*);
 void* setThreadParam(pthread_attr_t*);
-void* setAllThreadSchedParam(pthread_attr_t*);
+void* setAllThreadSchedParam(pthread_attr_t*, pthread_mutex_t*);
 
 void* getMessageFromRTDB(THREAD_ARG*);
 void* setMessageAtRTDB(THREAD_ARG*, int);
 
-void* dispatchImageProcessingFunctions(THREAD_ARG*, THREAD_ARG*, long, THREAD_INPUTS*);
+void* dispatchImageProcessingFunctions(THREAD_ARG*, THREAD_ARG*, pthread_attr_t*, long, THREAD_INPUTS*);
 
 void* setThreadInputs(THREAD_INPUTS*, int, int, uint16_t*, uint16_t*);
 

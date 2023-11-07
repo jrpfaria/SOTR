@@ -70,13 +70,16 @@ void *get_mes(CAB *c)
 
 void unget(CAB *c, CAB_BUFFER *p)
 {
-    p->use = p->use - 1;
-    if((p->use == 0) && (p != c->mrb)) {
-        p->next = c->free;
-        c->free = p;
+    if (p != NULL) {
+        p->use = p->use - 1;
+        if ((p->use == 0) && (p != c->mrb)) {
+            p->next = c->free;
+            c->free = p;
+        }
+    } else {
+        fprintf(stderr, "Error: Attempt to unget with NULL pointer\n");
     }
 }
-
 void delete_cab(CAB *c)
 {
     free(c);

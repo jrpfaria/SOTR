@@ -139,11 +139,12 @@ int main(int argc, char* argv[])
 	setThreadInputs(inputs, height, width, &cm_x, &cm_y);
 
 	// Set Thread Attributes
-	pthread_attr_t attr;
-	setThreadParam(&attr);
+	pthread_attr_t attr[3];
+	pthread_mutex_t mutexes[3];
+	setThreadParam(attr);
 
 	// Set Thread Scheduler Parameters
-	setAllThreadSchedParam(&attr);
+	setAllThreadSchedParam(attr, mutexes);
 
 	SDL_Init(SDL_INIT_VIDEO);
 
@@ -201,11 +202,11 @@ int main(int argc, char* argv[])
 	}
 
 	// Initialize Auxiliar Thread Structures
-	THREAD_ARG cab_arg;
-	initThreadArg(&cab_arg, (void *) cab);
+	THREAD_ARG* cab_arg = malloc(sizeof(THREAD_ARG));
+	initThreadArg(cab_arg, (void *) cab);
 
-	THREAD_ARG db_arg;
-	initThreadArg(&db_arg, (void *) db);
+	THREAD_ARG* db_arg = malloc(sizeof(THREAD_ARG));
+	initThreadArg(db_arg, (void *) db);
 
   	/* Get data from shmem and show it */
   	i=0;
@@ -222,20 +223,19 @@ int main(int argc, char* argv[])
 			
 			/* Here you can call image processing functions. E.g. */
 			printf("Before reserveCab()\n");
-			reserveCab(&cab_arg);
+			reserveCab(cab_arg);
 
 			printf("Before putMessageOnCab()\n");
-			putMessageOnCab(&cab_arg, (CAB_BUFFER*) cab_arg.content, (void*) shMemPtr);
+			putMessageOnCab(cab_arg, (CAB_BUFFER*) cab_arg->content, (void*) shMemPtr);
 
 			printf("Starting dispatchImageProcessingFunctions with width: %d and height: %d\n\n", width, height);
-			dispatchImageProcessingFunctions(&cab_arg, &db_arg, frame_counter++, inputs);		
+			dispatchImageProcessingFunctions(cab_arg, db_arg, attr, frame_counter++, inputs);		
 			
-			ungetMessageFromCAB(&cab_arg);
+			ungetMessageFromCAB(cab_arg);
 
 			/* Then display the message via SDL */
 			// Copy the image from RTDB to the SDL texture
-			unsigned char * imageToDisplay = (unsigned char*)getMessageFromRTDB(&db_arg);
-			// segfault here
+			unsigned char *imageToDisplay = (unsigned char*)getMessageFromRTDB(db_arg);
 			memcpy(pixels,imageToDisplay,size_of_data);
 			SDL_RenderClear(renderer);
 			SDL_UpdateTexture(screen_texture, NULL, pixels, width * IMGBYTESPERPIXEL );

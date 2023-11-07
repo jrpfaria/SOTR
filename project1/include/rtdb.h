@@ -13,7 +13,7 @@ struct db{
 
 struct db_buffer{
     DB_BUFFER *next;        // pointer to next buffer
-    void *data;             // pointer to data
+    unsigned char* data;             // pointer to data
 };
 
 DB* initDataBase(int, int);

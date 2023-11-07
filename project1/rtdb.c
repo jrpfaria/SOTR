@@ -8,7 +8,7 @@ DB* initDataBase(int size_of_data, int amount_of_buffers) {
     DB* db = (DB*) malloc(sizeof(DB));
     db->amount_of_buffers = amount_of_buffers;
     db->size_of_data = size_of_data;
-    db->mru = -1;
+    db->mru = 0;
     db->buffer = (DB_BUFFER*) malloc(sizeof(DB_BUFFER) * amount_of_buffers);
 
     if (db == NULL || db->buffer == NULL){
@@ -19,24 +19,28 @@ DB* initDataBase(int size_of_data, int amount_of_buffers) {
     // Initialize CAB_BUFFER struct
     for(int i = 0; i < amount_of_buffers; i++) {
         db->buffer[i].next = &db->buffer[i+1];
-        db->buffer[i].data = NULL;
+        db->buffer[i].data = (unsigned char*) NULL;
     }
 
     return db;
 }
 
 void* getMostRecentData(DB* dbPtr) {
+    fprintf(stderr, "MRU: %d\n", dbPtr->mru);
+
     if (dbPtr->mru == -1) {
         fprintf(stderr, "Error [rtdb-getMostRecentData]: no data in database\n");
         return NULL;
     }
+
     return dbPtr->buffer[dbPtr->mru].data;
 }
 
 void setBufferAtIndex(DB* dbPtr, int index, void* data) {
-    if (data == (void*)NULL)
+    if (data == (void*)NULL){
         fprintf(stderr, "Error [rtdb-SetBufferAtIndex]: data is NULL\n");
         return;
+    }
     
     if (index >= dbPtr->amount_of_buffers) {
         fprintf(stderr, "Error [rtdb-SetBufferAtIndex]: index out of bounds\n");
