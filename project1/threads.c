@@ -38,10 +38,6 @@ void* putMessageOnCab(THREAD_ARG* arg, CAB_BUFFER* buffer, void* data) {
     } else {
         fprintf(stderr, "Error: Buffer is NULL in putMessageOnCab\n");
     }
-    // pthread_mutex_lock(&arg->mutex);
-    // put_mes((CAB*)arg->source, buffer, data);
-    // pthread_mutex_unlock(&arg->mutex);
-
     return (void*) 1;
 }
 
@@ -130,6 +126,7 @@ void* dispatchImageProcessingFunctions(THREAD_ARG* arg, THREAD_ARG* db_arg, pthr
         inputs->mutex = &mutexes[0];
         pthread_create(&threads[0], &attr[0], (void *)imgDetectObstaclesWrapper, (void *)inputs);
         pthread_join(threads[0], NULL);
+        ungetMessageFromCAB(arg);
         db_arg->content = (unsigned char*)arg->content;
         printf("frame number: %ld, detecting obstacles\n", frame_number);
         // Save results to rtdb
@@ -141,6 +138,7 @@ void* dispatchImageProcessingFunctions(THREAD_ARG* arg, THREAD_ARG* db_arg, pthr
         inputs->mutex = &mutexes[1];
         pthread_create(&threads[1], &attr[1], (void *)imgEdgeDetectionWrapper, (void *)inputs);
         pthread_join(threads[1], NULL);
+        ungetMessageFromCAB(arg);
         db_arg->content = (unsigned char*)arg->content;
         printf("frame number: %ld, detecting edges\n", frame_number);
         // Save results to rtdb
@@ -152,6 +150,7 @@ void* dispatchImageProcessingFunctions(THREAD_ARG* arg, THREAD_ARG* db_arg, pthr
         inputs->mutex = &mutexes[2];
         pthread_create(&threads[2], &attr[2], (void *)imgFindBlueSquareWrapper, (void *)inputs);
         pthread_join(threads[2], NULL);
+        ungetMessageFromCAB(arg);
         db_arg->content = (unsigned char*)arg->content;
         printf("frame number: %ld, detecting blue squares\n", frame_number);
         // Save results to rtdb

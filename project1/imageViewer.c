@@ -222,16 +222,11 @@ int main(int argc, char* argv[])
 			printf("[imageViewer] New image in shmem signaled [%d]\n\r", i++);			
 			
 			/* Here you can call image processing functions. E.g. */
-			printf("Before reserveCab()\n");
 			reserveCab(cab_arg);
 
-			printf("Before putMessageOnCab()\n");
 			putMessageOnCab(cab_arg, (CAB_BUFFER*) cab_arg->content, (void*) shMemPtr);
 
-			printf("Starting dispatchImageProcessingFunctions with width: %d and height: %d\n\n", width, height);
-			dispatchImageProcessingFunctions(cab_arg, db_arg, attr, mutexes, frame_counter++, inputs);		
-			
-			ungetMessageFromCAB(cab_arg);
+			dispatchImageProcessingFunctions(cab_arg, db_arg, attr, mutexes, frame_counter++, inputs);
 
 			/* Then display the message via SDL */
 			// Copy the image from RTDB to the SDL texture
