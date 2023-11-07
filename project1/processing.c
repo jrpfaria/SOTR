@@ -176,10 +176,14 @@ int imgFindBlueSquare(unsigned char * shMemPtr, int width, int height, int16_t *
 	}					
 		
 	/* Return with suitable error code */
-	if(*cm_x >= 0 && *cm_y >= 0)
+	if(*cm_x >= 0 && *cm_y >= 0){
+		printf("BlueSquare found at (%3d,%3d)\n", cm_x, cm_y);
 		return 0;	// Success
-	else
+	}
+	else{
+		printf("No BlueSquare found\n");
 		return -1; // No objecty
+	}
 }
 
 /* Process image to turn image into gray scale*/
@@ -364,10 +368,14 @@ int imgDetectObstacles(unsigned char * shMemPtr, int width, int height, int16_t 
 		*cm_x = (out_edge-in_edge)/2+in_edge;		
 		
 	/* Return with suitable error code */
-	if(*cm_x >= 0 && *cm_y >= 0)
+	if(*cm_x >= 0 && *cm_y >= 0){
+		printf("Obstacle found at (%3d,%3d)\n", cm_x, cm_y);
 		return 0;	// Success
-	else
+	}
+	else{
+		printf("No obstacle found\n");
 		return -1; // No objecty
+	}
 }
 
 /* Wrapper for imgFindBlueSquare */
