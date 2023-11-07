@@ -229,7 +229,7 @@ int main(int argc, char* argv[])
 			putMessageOnCab(cab_arg, (CAB_BUFFER*) cab_arg->content, (void*) shMemPtr);
 
 			printf("Starting dispatchImageProcessingFunctions with width: %d and height: %d\n\n", width, height);
-			dispatchImageProcessingFunctions(cab_arg, db_arg, attr, frame_counter++, inputs);		
+			dispatchImageProcessingFunctions(cab_arg, db_arg, attr, mutexes, frame_counter++, inputs);		
 			
 			ungetMessageFromCAB(cab_arg);
 

@@ -110,10 +110,7 @@ void* setAllThreadSchedParam(pthread_attr_t* attr, pthread_mutex_t* mutexes) {
 
 void* getMessageFromRTDB(THREAD_ARG* arg) {
     pthread_mutex_lock(&arg->mutex);
-    arg->content = getMostRecentData((DB*)arg->source);
-
-    printf("arg->content: %p\n", arg->content);
-    
+    arg->content = getMostRecentData((DB*)arg->source);    
     pthread_mutex_unlock(&arg->mutex);
 
     return arg;
@@ -126,10 +123,11 @@ void* putMessageInRTDB(THREAD_ARG* arg, int index) {
     return (void *) 1;
 }
 
-void* dispatchImageProcessingFunctions(THREAD_ARG* arg, THREAD_ARG* db_arg, pthread_attr_t* attr, long frame_number, THREAD_INPUTS* inputs) {
+void* dispatchImageProcessingFunctions(THREAD_ARG* arg, THREAD_ARG* db_arg, pthread_attr_t* attr, pthread_mutex_t* mutexes, long frame_number, THREAD_INPUTS* inputs) {
     if (frame_number % 2 == 0) {
         getMessageFromCAB(arg);
         inputs->source = arg->content;
+        inputs->mutex = &mutexes[0];
         pthread_create(&threads[0], &attr[0], (void *)imgDetectObstaclesWrapper, (void *)inputs);
         pthread_join(threads[0], NULL);
         db_arg->content = (unsigned char*)arg->content;
@@ -140,6 +138,7 @@ void* dispatchImageProcessingFunctions(THREAD_ARG* arg, THREAD_ARG* db_arg, pthr
     if (frame_number % 3 == 0) {
         getMessageFromCAB(arg);
         inputs->source = arg->content;
+        inputs->mutex = &mutexes[1];
         pthread_create(&threads[1], &attr[1], (void *)imgEdgeDetectionWrapper, (void *)inputs);
         pthread_join(threads[1], NULL);
         db_arg->content = (unsigned char*)arg->content;
@@ -150,6 +149,7 @@ void* dispatchImageProcessingFunctions(THREAD_ARG* arg, THREAD_ARG* db_arg, pthr
     if (frame_number % 5 == 0) {
         getMessageFromCAB(arg);
         inputs->source = arg->content;
+        inputs->mutex = &mutexes[2];
         pthread_create(&threads[2], &attr[2], (void *)imgFindBlueSquareWrapper, (void *)inputs);
         pthread_join(threads[2], NULL);
         db_arg->content = (unsigned char*)arg->content;

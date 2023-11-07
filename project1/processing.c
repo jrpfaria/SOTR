@@ -373,17 +373,26 @@ int imgDetectObstacles(unsigned char * shMemPtr, int width, int height, int16_t 
 /* Wrapper for imgFindBlueSquare */
 int imgFindBlueSquareWrapper(void* args) {
 	THREAD_INPUTS* ti = (THREAD_INPUTS*) args;
-	return imgFindBlueSquare((unsigned char*)ti->source, ti->width, ti->height, ti->cm_x, ti->cm_y);
+	pthread_mutex_lock(ti->mutex);
+	int result = imgFindBlueSquare((unsigned char*)ti->source, ti->width, ti->height, ti->cm_x, ti->cm_y);
+	pthread_mutex_unlock(ti->mutex);
+	return result;
 }
 
 /* Wrapper for imgEdgeDetection */
 int imgEdgeDetectionWrapper(void* args) {
 	THREAD_INPUTS* ti = (THREAD_INPUTS*) args;
-	return imgEdgeDetection((unsigned char*)ti->source, ti->width, ti->height, ti->cm_x, ti->cm_y);
+	pthread_mutex_lock(ti->mutex);
+	int result = imgEdgeDetection((unsigned char*)ti->source, ti->width, ti->height, ti->cm_x, ti->cm_y);
+	pthread_mutex_unlock(ti->mutex);
+	return result;
 }
 
 /* Wrapper for imgDetectObstacles */
 int imgDetectObstaclesWrapper(void* args) {
 	THREAD_INPUTS* ti = (THREAD_INPUTS*) args;
-	return imgDetectObstacles((unsigned char*)ti->source, ti->width, ti->height, ti->cm_x, ti->cm_y);
+	pthread_mutex_lock(ti->mutex);
+	int result = imgDetectObstacles((unsigned char*)ti->source, ti->width, ti->height, ti->cm_x, ti->cm_y);
+	pthread_mutex_unlock(ti->mutex);
+	return result;
 }

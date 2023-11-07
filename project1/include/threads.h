@@ -21,6 +21,7 @@ typedef struct thread_inputs THREAD_INPUTS;
 
 struct thread_inputs {
     void* source;
+    pthread_mutex_t* mutex;
     int width;
     int height;
     uint16_t* cm_x;
@@ -39,7 +40,7 @@ void* setAllThreadSchedParam(pthread_attr_t*, pthread_mutex_t*);
 void* getMessageFromRTDB(THREAD_ARG*);
 void* setMessageAtRTDB(THREAD_ARG*, int);
 
-void* dispatchImageProcessingFunctions(THREAD_ARG*, THREAD_ARG*, pthread_attr_t*, long, THREAD_INPUTS*);
+void* dispatchImageProcessingFunctions(THREAD_ARG*, THREAD_ARG*, pthread_attr_t*, pthread_mutex_t*, long, THREAD_INPUTS*);
 
 void* setThreadInputs(THREAD_INPUTS*, int, int, uint16_t*, uint16_t*);
 
