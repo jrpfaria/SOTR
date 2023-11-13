@@ -26,9 +26,7 @@ DB* initDataBase(int size_of_data, int amount_of_buffers) {
 }
 
 void* getMostRecentData(DB* dbPtr) {
-    fprintf(stderr, "MRU: %d\n", dbPtr->mru);
-
-    if (dbPtr->mru == -1) {
+    if (dbPtr->buffer[dbPtr->mru].data == NULL) {
         fprintf(stderr, "Error [rtdb-getMostRecentData]: no data in database\n");
         return NULL;
     }
