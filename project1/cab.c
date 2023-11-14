@@ -39,8 +39,8 @@ CAB_BUFFER *reserve(CAB* c)
 {
     CAB_BUFFER* p = malloc(sizeof(CAB_BUFFER));
     for (int i = 0; i < c->max_buffer; i++)
-        if (c->mrb[i].use == 0){
-            p = &c->mrb[i];
+        if (c->free[i].use == 0){
+            p = &c->free[i];
             return p;   
         } 
     printf("Error reserving buffer.\n");
@@ -56,6 +56,13 @@ void put_mes(CAB *c, CAB_BUFFER* buffer, void* data)
     if(newBufferData == NULL) {
         printf("Error allocating memory (cab-put_mes)");
     }
+
+    // might be useful later
+    // if(c->mrb->use == 0) {
+    //     c->mrb->next = c->free;
+    //     c->free = c->mrb;
+    // }
+
     memcpy(newBufferData, data, c->buffer_size);
     void* aux = buffer->data;
     buffer->data = newBufferData;
