@@ -67,7 +67,7 @@ void* initThreadArg(THREAD_ARG* arg, void* cab) {
 void* setThreadParam(pthread_attr_t* attr) {
 	for (int i = 0; i < 3; i++){
         pthread_attr_init(&attr[i]);
-    	pthread_attr_setdetachstate(&attr[i], PTHREAD_EXPLICIT_SCHED);
+    	pthread_attr_setinheritsched(&attr[i], PTHREAD_EXPLICIT_SCHED);
 	    pthread_attr_setschedpolicy(&attr[i], SCHED_RR);
     }
     
@@ -120,19 +120,17 @@ void* putMessageInRTDB(THREAD_ARG* arg, int index) {
 }
 
 void* dispatchImageProcessingFunctions(THREAD_ARG* arg, THREAD_ARG* db_arg, pthread_attr_t* attr, pthread_mutex_t* mutexes, long frame_number, THREAD_INPUTS* inputs) {
+    getMessageFromCAB(arg);
+    inputs->source = arg->content;
+    inputs->mutex = &mutexes[0];
+    pthread_create(&threads[0], &attr[0], (void *)imgDetectObstaclesWrapper, (void *)inputs);
+    pthread_join(threads[0], NULL);
+    ungetMessageFromCAB(arg);
+    db_arg->content = (unsigned char*)arg->content;
+    printf("frame number: %ld, detecting obstacles\n", frame_number);
+    // Save results to rtdb
+    putMessageInRTDB(db_arg, 0);
     if (frame_number % 2 == 0) {
-        getMessageFromCAB(arg);
-        inputs->source = arg->content;
-        inputs->mutex = &mutexes[0];
-        pthread_create(&threads[0], &attr[0], (void *)imgDetectObstaclesWrapper, (void *)inputs);
-        pthread_join(threads[0], NULL);
-        ungetMessageFromCAB(arg);
-        db_arg->content = (unsigned char*)arg->content;
-        printf("frame number: %ld, detecting obstacles\n", frame_number);
-        // Save results to rtdb
-        putMessageInRTDB(db_arg, 0);
-    }
-    if (frame_number % 3 == 0) {
         getMessageFromCAB(arg);
         inputs->source = arg->content;
         inputs->mutex = &mutexes[1];

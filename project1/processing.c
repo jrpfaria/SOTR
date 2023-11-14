@@ -177,7 +177,7 @@ int imgFindBlueSquare(unsigned char * shMemPtr, int width, int height, int16_t *
 		
 	/* Return with suitable error code */
 	if(*cm_x >= 0 && *cm_y >= 0){
-		printf("BlueSquare found at (%3d,%3d)\n", cm_x, cm_y);
+		printf("BlueSquare found at (%3d,%3d)\n", *cm_x, *cm_y);
 		return 0;	// Success
 	}
 	else{
@@ -271,9 +271,6 @@ int imgDetectObstacles(unsigned char * shMemPtr, int width, int height, int16_t 
 	imgPtr += 4 * top_limit * 4 * left_limit;
 	for (y = top_limit ; y < bottom_limit; ++y){
 		for (x = left_limit; x < right_limit; x++){
-			/* Remember that for each pix the access is B+G+R+filler */
-			/* Simple approach: intensity of one componet much greater than the other two */
-			/* There are much robust approaches ... */
 			if(0xFF > (MAGNITUDE*2 * (*(imgPtr+1))) && 0xFF > (MAGNITUDE*2 * (*(imgPtr+1))) && 0xFF > (MAGNITUDE*2 * (*(imgPtr+2))))
 				pixCountY[y]+=1;
 			
@@ -369,7 +366,7 @@ int imgDetectObstacles(unsigned char * shMemPtr, int width, int height, int16_t 
 		
 	/* Return with suitable error code */
 	if(*cm_x >= 0 && *cm_y >= 0){
-		printf("Obstacle found at (%3d,%3d)\n", cm_x, cm_y);
+		printf("Obstacle found at (%3d,%3d)\n", *cm_x, *cm_y);
 		return 0;	// Success
 	}
 	else{
@@ -379,28 +376,28 @@ int imgDetectObstacles(unsigned char * shMemPtr, int width, int height, int16_t 
 }
 
 /* Wrapper for imgFindBlueSquare */
-int imgFindBlueSquareWrapper(void* args) {
+void* imgFindBlueSquareWrapper(void* args) {
 	THREAD_INPUTS* ti = (THREAD_INPUTS*) args;
 	pthread_mutex_lock(ti->mutex);
 	int result = imgFindBlueSquare((unsigned char*)ti->source, ti->width, ti->height, ti->cm_x, ti->cm_y);
 	pthread_mutex_unlock(ti->mutex);
-	return result;
+	return NULL;
 }
 
 /* Wrapper for imgEdgeDetection */
-int imgEdgeDetectionWrapper(void* args) {
+void* imgEdgeDetectionWrapper(void* args) {
 	THREAD_INPUTS* ti = (THREAD_INPUTS*) args;
 	pthread_mutex_lock(ti->mutex);
 	int result = imgEdgeDetection((unsigned char*)ti->source, ti->width, ti->height, ti->cm_x, ti->cm_y);
 	pthread_mutex_unlock(ti->mutex);
-	return result;
+	return NULL;
 }
 
 /* Wrapper for imgDetectObstacles */
-int imgDetectObstaclesWrapper(void* args) {
+void* imgDetectObstaclesWrapper(void* args) {
 	THREAD_INPUTS* ti = (THREAD_INPUTS*) args;
 	pthread_mutex_lock(ti->mutex);
 	int result = imgDetectObstacles((unsigned char*)ti->source, ti->width, ti->height, ti->cm_x, ti->cm_y);
 	pthread_mutex_unlock(ti->mutex);
-	return result;
+	return NULL;
 }

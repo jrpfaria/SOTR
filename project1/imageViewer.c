@@ -141,6 +141,9 @@ int main(int argc, char* argv[])
 	// Set Thread Attributes
 	pthread_attr_t attr[3];
 	pthread_mutex_t mutexes[3];
+	pthread_mutex_t displayMutex;
+	pthread_mutex_init(&displayMutex, NULL);
+
 	setThreadParam(attr);
 
 	// Set Thread Scheduler Parameters
@@ -223,19 +226,21 @@ int main(int argc, char* argv[])
 			
 			/* Here you can call image processing functions. E.g. */
 			reserveCab(cab_arg);
-
+			
 			putMessageOnCab(cab_arg, (CAB_BUFFER*) cab_arg->content, (void*) shMemPtr);
 
 			dispatchImageProcessingFunctions(cab_arg, db_arg, attr, mutexes, frame_counter++, inputs);
 
 			/* Then display the message via SDL */
 			// Copy the image from RTDB to the SDL texture
+			pthread_mutex_lock(&displayMutex);
 			unsigned char *imageToDisplay = (unsigned char*)getMessageFromRTDB(db_arg);
 			memcpy(pixels,imageToDisplay,size_of_data);
 			SDL_RenderClear(renderer);
-			SDL_UpdateTexture(screen_texture, NULL, pixels, width * IMGBYTESPERPIXEL );
+			SDL_UpdateTexture(screen_texture, NULL, pixels, width * IMGBYTESPERPIXEL);
 			SDL_RenderCopy(renderer, screen_texture, NULL, NULL);
 			SDL_RenderPresent(renderer);
+			pthread_mutex_unlock(&displayMutex);
 			
 		} else {
 			printf("[imageViewer] Error on sem_wait\n\r");

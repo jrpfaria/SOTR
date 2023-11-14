@@ -13,6 +13,6 @@ int imgFindBlueSquare(unsigned char * shMemPtr, int width, int height, int16_t *
 int imgEdgeDetection(unsigned char *, int, int, int16_t *, int16_t *);
 int imgDetectObstacles(unsigned char *, int, int, int16_t *, int16_t *);
 
-int imgFindBlueSquareWrapper(void*);
-int imgEdgeDetectionWrapper(void*);
-int imgDetectObstaclesWrapper(void*);
+void* imgFindBlueSquareWrapper(void*);
+void* imgEdgeDetectionWrapper(void*);
+void* imgDetectObstaclesWrapper(void*);
