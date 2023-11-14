@@ -16,7 +16,8 @@ void* dummy_task(void* arg) {
     fprintf(stderr, "MRB: %p\n", c->mrb);
 
     if (c->mrb->next == NULL)
-        unget(c, &top[j++]);
+        for (int i = 0; i < 5; ++i)
+            unget(c, &top[j++]);
     if (j >= 3)
         j = 0;
 

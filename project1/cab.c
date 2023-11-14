@@ -49,22 +49,27 @@ CAB_BUFFER *reserve(CAB* c)
 
 void put_mes(CAB *c, CAB_BUFFER* buffer, void* data)
 {
+    if (buffer == NULL) {
+        printf("Error: Attempt to put with NULL pointer\n");
+        return;
+    }
+    
     if(buffer->data == NULL) {
         buffer->data = malloc(c->buffer_size);
     }
+    
     void* newBufferData = malloc(c->buffer_size);
+    
     if(newBufferData == NULL) {
         printf("Error allocating memory (cab-put_mes)");
     }
 
-    // might be useful later
-    // if(c->mrb->use == 0) {
-    //     c->mrb->next = c->free;
-    //     c->free = c->mrb;
-    // }
+    if(c->mrb->use == 0) {
+        c->mrb->next = c->free;
+    }
 
     memcpy(newBufferData, data, c->buffer_size);
-    void* aux = buffer->data;
+    
     buffer->data = newBufferData;
     
     c->mrb = buffer;
