@@ -36,3 +36,7 @@ void set_output_at_index(RTDB* db, int index, char o) {
     else 
         db->io &= ~(1 << index);
 }
+
+void set_inputs(RTDB* db, char i) {
+    db->io = (i << 4) | db->io & 0x0F;
+}
