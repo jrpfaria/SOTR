@@ -2,7 +2,7 @@
 
 RTDB* rtdb_create(void) {
     RTDB* db = (RTDB*)malloc(sizeof(RTDB));
-    db->io = 0;
+    db->io = 0x00;
     
     for (int i = 0; i < 20; i++) 
         db->temp[i] = 0.0;
