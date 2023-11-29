@@ -7,16 +7,16 @@ struct rtdb{
     // Since we are using a bitfield, and there are 4 LEDs and 4 Buttons 
     // we can use a single char to store the state of all of them
     char io;
-    // Float array to store the past 20 temperature values
-    float temp[20];
+    // Array to store the past 20 temperature values
+    int temp[20];
 };
 
 RTDB* rtdb_create(void);
 
 // Temperature functions
-float rtdb_get_high(RTDB*);
-float rtdb_get_low(RTDB*);
-void rtdb_insert_temp(RTDB*, float);
+int rtdb_get_high(RTDB*);
+int rtdb_get_low(RTDB*);
+void rtdb_insert_temp(RTDB*, int);
 
 // IO functions
 void set_outputs(RTDB*, char);

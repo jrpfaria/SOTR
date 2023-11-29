@@ -5,28 +5,28 @@ RTDB* rtdb_create(void) {
     db->io = 0x00;
     
     for (int i = 0; i < 20; i++) 
-        db->temp[i] = 0.0;
+        db->temp[i] = 0;
 
     return db;
 }
 
-float rtdb_get_high(RTDB* db) {
-    float high = db->temp[0];
+int rtdb_get_high(RTDB* db) {
+    int high = db->temp[0];
     for (int i = 1; i < 20; i++)
         if (db->temp[i] > high)
             high = db->temp[i];
     return high;
 }
 
-float rtdb_get_low(RTDB* db) {
-    float low = db->temp[0];
+int rtdb_get_low(RTDB* db) {
+    int low = db->temp[0];
     for (int i = 1; i < 20; i++)
         if (db->temp[i] < low)
             low = db->temp[i];
     return low;
 }
 
-void rtdb_insert_temp(RTDB* db, float temp) {
+void rtdb_insert_temp(RTDB* db, int temp) {
     for (int i = 1; i < 20; i++)
         db->temp[i] = db->temp[i-1];
     db->temp[0] = temp;
