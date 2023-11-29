@@ -26,11 +26,11 @@ float rtdb_get_low(RTDB* db) {
     return low;
 }
 
-void setIO(RTDB* db, char o) {
+void set_outputs(RTDB* db, char o) {
     db->io = db->io & 0xF0 | o & 0x0F;
 }
 
-void setSpecificIO(RTDB* db, int index, char o) {
+void set_output_at_index(RTDB* db, int index, char o) {
     if (o) 
         db->io |= (1 << index);
     else 

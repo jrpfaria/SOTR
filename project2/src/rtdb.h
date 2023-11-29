@@ -14,7 +14,7 @@ struct rtdb{
 RTDB* rtdb_create(void);
 float rtdb_get_high(RTDB*);
 float rtdb_get_low(RTDB*);
-void setIO(RTDB*, char);
-void setSpecificIO(RTDB*, int, char);
+void set_outputs(RTDB*, char);
+void set_output_at_index(RTDB*, int, char);
 
 #endif
