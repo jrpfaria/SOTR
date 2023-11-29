@@ -1,4 +1,6 @@
-#include "rtdb.h"
+#include "include/rtdb.h"
+#include <stdlib.h>
+#include <stdio.h>
 
 RTDB* rtdb_create(void) {
     RTDB* db = (RTDB*)malloc(sizeof(RTDB));
@@ -32,17 +34,20 @@ void rtdb_insert_temp(RTDB* db, int temp) {
     db->temp[0] = temp;
 }
 
-void set_outputs(RTDB* db, char o) {
-    db->io = db->io & 0xF0 | o & 0x0F;
+void set_outputs(RTDB* db, unsigned char o) {
+    db->io = (db->io & 0xF0) | (o & 0x0F);
+    printf("io: %x\n", db->io);
 }
 
-void set_output_at_index(RTDB* db, int index, char o) {
+void set_output_at_index(RTDB* db, int index, unsigned char o) {
     if (o) 
         db->io |= (1 << index);
     else 
         db->io &= ~(1 << index);
+
+    printf("io: %x\n", db->io);
 }
 
-void set_inputs(RTDB* db, char i) {
-    db->io = (i << 4) | db->io & 0x0F;
+void set_inputs(RTDB* db, unsigned char i) {
+    db->io = (i << 4) | (db->io & 0x0F);
 }
