@@ -27,7 +27,7 @@ float rtdb_get_low(RTDB* db) {
 }
 
 void setIO(RTDB* db, char io) {
-    db->io = io;
+    db->io = db->io & 0xF0 | io & 0x0F;
 }
 
 void setSpecificIO(RTDB* db, int index, char io) {
