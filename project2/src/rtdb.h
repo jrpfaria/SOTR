@@ -12,8 +12,13 @@ struct rtdb{
 };
 
 RTDB* rtdb_create(void);
+
+// Temperature functions
 float rtdb_get_high(RTDB*);
 float rtdb_get_low(RTDB*);
+void rtdb_insert_temp(RTDB*, float);
+
+// IO functions
 void set_outputs(RTDB*, char);
 void set_output_at_index(RTDB*, int, char);
 void set_inputs(RTDB*, char);

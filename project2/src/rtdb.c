@@ -26,6 +26,12 @@ float rtdb_get_low(RTDB* db) {
     return low;
 }
 
+void rtdb_insert_temp(RTDB* db, float temp) {
+    for (int i = 1; i < 20; i++)
+        db->temp[i] = db->temp[i-1];
+    db->temp[0] = temp;
+}
+
 void set_outputs(RTDB* db, char o) {
     db->io = db->io & 0xF0 | o & 0x0F;
 }
