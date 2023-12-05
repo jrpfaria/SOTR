@@ -1,5 +1,6 @@
 #ifndef __RTDB__
 #define __RTDB__
+#include <zephyr/kernel.h>
 
 typedef struct rtdb RTDB;
 
@@ -9,6 +10,7 @@ struct rtdb{
     unsigned char io;
     // Array to store the past 20 temperature values
     int temp[20];
+    struct k_mutex mutex;
 };
 
 RTDB* rtdb_create(void);
