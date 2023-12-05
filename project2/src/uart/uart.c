@@ -14,6 +14,22 @@ char uart_lut(char c) {
     }
 }
 
+int checkSum(char* cmd){
+    int i = -1, sum = 0, checksum = 0;
+
+    while(cmd[i] != '#') i++;    
+    
+    int aux_iterator = i - 3;
+    int aux_multiplier = 1;
+    
+    for (; i > aux_iterator; i--, aux_multiplier *= 10)
+        sum += (cmd[i] - '0') * aux_multiplier;
+
+    for (; i > 0; i--) checksum += cmd[i];
+
+    return sum == checksum;
+}
+
 void uart_interface(RTDB* db, char* cmd){
     printf("cmd: %s\n", cmd);
 
