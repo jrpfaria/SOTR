@@ -96,8 +96,8 @@ void main(void)
     }
 	RTDB* db = rtdb_create();
 
-	char msg[15];
-	int i =0;
+	char buffer[64] = {0};
+	int i = 0;
     
     /* Main loop */
     while(1) {
@@ -110,23 +110,38 @@ void main(void)
             rx_chars[uart_rxbuf_nchar] = 0; /* Terminate the string */
             uart_rxbuf_nchar = 0;           /* Reset counter */
 
-			if(i==15) i = 0;
-			
-			if(rx_chars[0] == '!'){
-				printk("start\n");
-				memset(msg,0,strlen(msg));
-				i = 0;
-			} 
-			msg[i] = rx_chars[0];
-			i++;
+			buffer[i] = rx_chars[0];
 
             sprintf(rep_mesg,"You typed [%s]\n\r",rx_chars);
 
 			if(rx_chars[0] == '#'){
-				printk("end\n");
-				printk("msg:%s\n",msg);
-				uart_interface(db, msg);
+                int k=0;
+                char msg[30] = {0};
+                while(buffer[i] != '!'){
+                    msg[k] = buffer[i];
+                    i--,k++;
+                    if(k>29) {printk("message too long: %d\n",k), memset(msg,0,30); break;}
+                    if(i<0) i = 63;
+                    if(buffer[i]=='#') {printk("bad message\n"), k=0, memset(msg,0,30);break;}
+                }
+                if(k > 0 && k <= 29) {
+                    msg[k] = '!';
+                    int j = 0, l = strlen(msg) - 1;
+                    char temp;
+                    while(j < l){
+                        temp = msg[j];
+                        msg[j] = msg[l];
+                        msg[l] = temp;
+                        l--, j++;
+                    }
+                    printk("msg: %s\n",msg);
+                    uart_interface(db, msg);
+                    memset(msg,0,30);
+                }
 			}
+
+            if(i==63) i = 0;
+            else i++;
             
             err = uart_tx(uart_dev, rep_mesg, strlen(rep_mesg), SYS_FOREVER_MS);
             if (err) {
@@ -146,17 +161,17 @@ void main(void)
 /* Should be kept as short and simple as possible. Heavier processing should be deferred to a task with suitable priority*/
 static void uart_cb(const struct device *dev, struct uart_event *evt, void *user_data)
 {
-    int err;
+    // int err;
 
     switch (evt->type) {
 	
-        // case UART_TX_DONE:
-		//     printk("UART_TX_DONE event \n\r");
-        //     break;
+        case UART_TX_DONE:
+		    // printk("UART_TX_DONE event \n\r");
+            break;
 
-    	// case UART_TX_ABORTED:
-	    // 	printk("UART_TX_ABORTED event \n\r");
-		//     break;
+    	case UART_TX_ABORTED:
+	    	// printk("UART_TX_ABORTED event \n\r");
+		    break;
 		
 	    case UART_RX_RDY:
 		    // printk("UART_RX_RDY event \n\r");
@@ -165,32 +180,32 @@ static void uart_cb(const struct device *dev, struct uart_event *evt, void *user
             uart_rxbuf_nchar++;
 		    break;
 
-	    // case UART_RX_BUF_REQUEST:
-		//     printk("UART_RX_BUF_REQUEST event \n\r");
-		//     break;
+	    case UART_RX_BUF_REQUEST:
+		    // printk("UART_RX_BUF_REQUEST event \n\r");
+		    break;
 
-	    // case UART_RX_BUF_RELEASED:
-		//     printk("UART_RX_BUF_RELEASED event \n\r");
-		//     break;
+	    case UART_RX_BUF_RELEASED:
+		    // printk("UART_RX_BUF_RELEASED event \n\r");
+		    break;
 		
-	    // case UART_RX_DISABLED: 
-        //     /* When the RX_BUFF becomes full RX is is disabled automaticaly.  */
-        //     /* It must be re-enabled manually for continuous reception */
-        //     printk("UART_RX_DISABLED event \n\r");
-		//     err =  uart_rx_enable(uart_dev ,rx_buf,sizeof(rx_buf),RX_TIMEOUT);
-        //     if (err) {
-        //         printk("uart_rx_enable() error. Error code:%d\n\r",err);
-        //         exit(FATAL_ERR);                
-        //     }
-		//     break;
+	    case UART_RX_DISABLED: 
+            /* When the RX_BUFF becomes full RX is is disabled automaticaly.  */
+            /* It must be re-enabled manually for continuous reception */
+            // printk("UART_RX_DISABLED event \n\r");
+		    // err =  uart_rx_enable(uart_dev ,rx_buf,sizeof(rx_buf),RX_TIMEOUT);
+            // if (err) {
+            //     printk("uart_rx_enable() error. Error code:%d\n\r",err);
+            //     exit(FATAL_ERR);                
+            // }
+		    break;
 
-	    // case UART_RX_STOPPED:
-		//     printk("UART_RX_STOPPED event \n\r");
-		//     break;
+	    case UART_RX_STOPPED:
+		    // printk("UART_RX_STOPPED event \n\r");
+		    break;
 		
-	    // default:
-        //     printk("UART: unknown event \n\r");
-		//     break;
+	    default:
+            // printk("UART: unknown event \n\r");
+		    break;
     }
 
 }
