@@ -115,27 +115,77 @@ void main(void)
             sprintf(rep_mesg,"You typed [%s]\n\r",rx_chars);
 
 			if(rx_chars[0] == '#'){
+                char errCode = '1';
                 int k=0;
                 char msg[30] = {0};
                 while(buffer[i] != '!'){
                     msg[k] = buffer[i];
                     i--,k++;
-                    if(k>29) {printk("message too long: %d\n",k), memset(msg,0,30); break;}
+                    if(k>28) {printk("message too long: %d\n",k), memset(msg,0,30), errCode = '4'; break;}
                     if(i<0) i = 63;
-                    if(buffer[i]=='#') {printk("bad message\n"), k=0, memset(msg,0,30);break;}
+                    if(buffer[i]=='#') {printk("bad message\n"), memset(msg,0,30), errCode = '4';break;}
                 }
-                if(k > 0 && k <= 29) {
-                    msg[k] = '!';
-                    int j = 0, l = strlen(msg) - 1;
-                    char temp;
-                    while(j < l){
-                        temp = msg[j];
-                        msg[j] = msg[l];
-                        msg[l] = temp;
-                        l--, j++;
+                msg[k] = '!';
+                int j = 0, l = strlen(msg) - 1;
+                char temp;
+                while(j < l){
+                    temp = msg[j];
+                    msg[j] = msg[l];
+                    msg[l] = temp;
+                    l--, j++;
+                }
+                if(errCode == '4'){
+                    char ack[30] = "!1Z";
+                    char id[2] = {msg[2], '\0'};
+                    strcat(ack,id);
+                    strcat(ack,"4");
+                    apply_checksum(ack,9);
+                    strcat(ack,"\n\r");
+                    err = uart_tx(uart_dev, ack, strlen(ack), SYS_FOREVER_MS);
+                    if (err) {
+                        printk("uart_tx() error. Error code:%d\n\r",err);
+                        return;
                     }
-                    printk("msg: %s\n",msg);
-                    uart_interface(db, msg);
+                } else if(msg[2] != '0' && msg[2] != '1' && msg[2] != '2' && msg[2] != '3' && msg[2] != '4' && msg[2] != '5' && msg[2] != '6' && msg[2] != '7'){ //é preciso mudar isto
+                    printk("msg[2]: %d\n",msg[2]);
+                    char ack[30] = "!1Z";
+                    char id[2] = {msg[2], '\0'};
+                    strcat(ack,id);
+                    strcat(ack,"2");
+                    apply_checksum(ack,9);
+                    strcat(ack,"\n\r");
+                    err = uart_tx(uart_dev, ack, strlen(ack), SYS_FOREVER_MS);
+                    if (err) {
+                        printk("uart_tx() error. Error code:%d\n\r",err);
+                        return;
+                    }
+                } else {
+                    if(checkSum(msg)){
+                        char ack[30] = "!1Z";
+                        char id[2] = {msg[2],'\0'};
+                        strcat(ack,id);
+                        strcat(ack,"1");
+                        apply_checksum(ack,9);
+                        strcat(ack,"\n\r");
+                        err = uart_tx(uart_dev, ack, sizeof(ack), SYS_FOREVER_MS);
+                        if (err) {
+                            printk("uart_tx() error. Error code:%d\n\r",err);
+                            return;
+                        }
+                        uart_interface(db, msg);
+                    } else {
+                        char ack[30] = "!1Z";
+                        char id[2] = {msg[2], '\0'};
+                        strcat(ack,id);
+                        strcat(ack,"3");
+                        apply_checksum(ack,9);
+                        strcat(ack,"\n\r");
+                        err = uart_tx(uart_dev, ack, strlen(ack), SYS_FOREVER_MS);
+                        if (err) {
+                            printk("uart_tx() error. Error code:%d\n\r",err);
+                            return;
+                        }
+                    }
                     memset(msg,0,30);
                 }
 			}

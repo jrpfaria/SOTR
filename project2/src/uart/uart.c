@@ -16,8 +16,7 @@ char uart_lut(char c) {
 
 int checkSum(char* cmd){
     int i = -1, sum = 0, checksum = 0;
-
-    while(cmd[i] != '#') i++;    
+    i = strlen(cmd)-2;
     
     int aux_iterator = i - 3;
     int aux_multiplier = 1;
@@ -36,12 +35,15 @@ char* apply_checksum(char* cmd, int size){
     for(int i = 1; i < size - 3; i++)
         sum += cmd[i];
     
-    for(int i = 0; i < 3; i++){
-        strcat(cmd, (sum % 10) + '0');
+    char checksumDigits[4];
+
+    for(int i = 2; i >= 0; i--){
+        checksumDigits[i] = (sum % 10) + '0';
         sum /= 10;
     }
+    checksumDigits[3] = '#';
 
-    return strcat(cmd, "#");
+    return strcat(cmd, checksumDigits);
 }
 
 char* uart_interface(RTDB* db, char* cmd){
