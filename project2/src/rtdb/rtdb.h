@@ -10,6 +10,8 @@ struct rtdb{
     unsigned char io;
     // Array to store the past 20 temperature values
     int temp[20];
+    int max;
+    int min;
     struct k_mutex mutex;
 };
 
@@ -19,10 +21,15 @@ RTDB* rtdb_create(void);
 int rtdb_get_high(RTDB*);
 int rtdb_get_low(RTDB*);
 void rtdb_insert_temp(RTDB*, int);
+void rtdb_reset_temp_history(RTDB*);
+int* rtdb_get_temps(RTDB*, int*);
+int rtdb_get_last_temp(RTDB*);
 
 // IO functions
-void set_outputs(RTDB*, unsigned char);
-void set_output_at_index(RTDB*, int, unsigned char);
-void set_inputs(RTDB*, unsigned char);
+void rtdb_set_outputs(RTDB*, unsigned char);
+void rtdb_set_output_at_index(RTDB*, int, unsigned char);
+void rtdb_set_inputs(RTDB*, unsigned char);
+unsigned char rtdb_get_inputs(RTDB*);
+unsigned char rtdb_get_outputs(RTDB*);
 
 #endif

@@ -35,23 +35,74 @@ void uart_interface(RTDB* db, char* cmd){
 
     int index;
     char bin;
+    int high, low;
+    int temps[20];
 
     if (cmd[1] == '0'){
         switch (cmd[2])
         {
             case '0':
+                printk("Case 0; Setting Output at Index\n");
                 index = (int) uart_lut(cmd[3]);
                 bin = uart_lut(cmd[4]);
-                set_inputs(db, 0xFF);
-                set_output_at_index(db, --index, bin);
+                rtdb_set_output_at_index(db, --index, bin);
+                printf("outputs: %x\n", rtdb_get_outputs(db));
                 break;
             
             case '1':
+                printk("Case 1; Setting All Outputs\n");
                 bin = uart_lut(cmd[3]);
-                set_inputs(db, 0xFF);
-                set_outputs(db, bin);
+                rtdb_set_outputs(db, bin);
+                printf("outputs: %x\n", rtdb_get_outputs(db));
                 break;
 
+            case '2':
+                printk("Case 2; Getting All Inputs\n");
+                unsigned char i = rtdb_get_inputs(db);
+                printf("i: %x\n", i);
+                break;
+
+            case '3':
+                printk("Case 3; Getting All Outputs\n");
+                unsigned char o = rtdb_get_outputs(db);
+                printf("o: %x\n", o);
+                break;
+
+            case '4':
+                printk("Case 4; Getting Last Temp\n");
+                int last_temp = rtdb_get_last_temp(db);
+                printf("last_temp: %d\n", last_temp);
+                break;
+
+            case '5':
+                printk("Case 5; Getting Temps\n");
+                rtdb_get_temps(db, temps);
+                printk("temps: ");
+                for (int i = 0; i < 20; i++)
+                    printk("%d, ", temps[i]);
+                printk("\n");
+                break;
+
+            case '6':
+                printk("Case 6; Getting High and Low\n");
+                high = rtdb_get_high(db);
+                low = rtdb_get_low(db);
+                printk("high: %d   | low: %d \n", high, low);
+                break;
+
+            case '7':
+                printk("Case 7; Resetting history\n");
+                rtdb_reset_temp_history(db);
+                rtdb_get_temps(db, temps);
+                printk("temps: ");
+                for (int i = 0; i < 20; i++)
+                    printk("%d, ", temps[i]);
+                printk("\n");
+                high = rtdb_get_high(db);
+                low = rtdb_get_low(db);
+                printk("high: %d   | low: %d \n", high, low);
+                break;
+                
             default: break;
         }
     }
