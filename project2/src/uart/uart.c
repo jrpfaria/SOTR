@@ -30,7 +30,21 @@ int checkSum(char* cmd){
     return sum == checksum;
 }
 
-void uart_interface(RTDB* db, char* cmd){
+char* apply_checksum(char* cmd, int size){
+    int sum = 0;
+
+    for(int i = 1; i < size - 3; i++)
+        sum += cmd[i];
+    
+    for(int i = 0; i < 3; i++){
+        strcat(cmd, (sum % 10) + '0');
+        sum /= 10;
+    }
+
+    return strcat(cmd, "#");
+}
+
+char* uart_interface(RTDB* db, char* cmd){
     printf("cmd: %s\n", cmd);
 
     int index;
