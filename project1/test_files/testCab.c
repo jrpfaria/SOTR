@@ -12,7 +12,6 @@ static CAB_BUFFER* top;
 void* dummy_task(void* arg) {
     CAB* c = (CAB*)arg;
 
-    fprintf(stderr, "Free: %p\n", c->free);
     fprintf(stderr, "MRB: %p\n", c->mrb);
 
     if (c->mrb->next == NULL)

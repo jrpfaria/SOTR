@@ -64,10 +64,6 @@ void put_mes(CAB *c, CAB_BUFFER* buffer, void* data)
         printf("Error allocating memory (cab-put_mes)");
     }
 
-    if(c->mrb->use == 0) {
-        c->mrb->next = c->free;
-    }
-
     memcpy(newBufferData, data, c->buffer_size);
     
     buffer->data = newBufferData;
@@ -89,10 +85,6 @@ void unget(CAB *c, CAB_BUFFER *p)
 {
     if (p != NULL) {
         p->use = p->use - 1;
-        if ((p->use == 0) && (p != c->mrb)) {
-            p->next = c->free;
-            c->free = p;
-        }
     } else {
         fprintf(stderr, "Error: Attempt to unget with NULL pointer\n");
     }

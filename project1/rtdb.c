@@ -56,9 +56,7 @@ void setBufferAtIndex(DB* dbPtr, int index, void* data) {
     }
 
     memcpy(newBufferData, data, dbPtr->size_of_data);
-    void* aux = dbPtr->buffer[index].data;
     dbPtr->buffer[index].data = newBufferData;
-    free(aux);
 
     dbPtr->mru = index;
 }
