@@ -139,20 +139,20 @@ void main(void)
                     char id[2] = {msg[2], '\0'};
                     strcat(ack,id);
                     strcat(ack,"4");
-                    apply_checksum(ack,9);
+                    uart_apply_checksum(ack,9);
                     strcat(ack,"\n\r");
                     err = uart_tx(uart_dev, ack, strlen(ack), SYS_FOREVER_MS);
                     if (err) {
                         printk("uart_tx() error. Error code:%d\n\r",err);
                         return;
                     }
-                } else if(msg[2] != '0' && msg[2] != '1' && msg[2] != '2' && msg[2] != '3' && msg[2] != '4' && msg[2] != '5' && msg[2] != '6' && msg[2] != '7'){ //é preciso mudar isto
+                } else if(msg[2] < 0x30 || msg[2] > 0x37){
                     printk("msg[2]: %d\n",msg[2]);
                     char ack[30] = "!1Z";
                     char id[2] = {msg[2], '\0'};
                     strcat(ack,id);
                     strcat(ack,"2");
-                    apply_checksum(ack,9);
+                    uart_apply_checksum(ack,9);
                     strcat(ack,"\n\r");
                     err = uart_tx(uart_dev, ack, strlen(ack), SYS_FOREVER_MS);
                     if (err) {
@@ -160,12 +160,12 @@ void main(void)
                         return;
                     }
                 } else {
-                    if(checkSum(msg)){
+                    if(uart_checkSum(msg)){
                         char ack[30] = "!1Z";
                         char id[2] = {msg[2],'\0'};
                         strcat(ack,id);
                         strcat(ack,"1");
-                        apply_checksum(ack,9);
+                        uart_apply_checksum(ack,9);
                         strcat(ack,"\n\r");
                         err = uart_tx(uart_dev, ack, sizeof(ack), SYS_FOREVER_MS);
                         if (err) {
@@ -178,7 +178,7 @@ void main(void)
                         char id[2] = {msg[2], '\0'};
                         strcat(ack,id);
                         strcat(ack,"3");
-                        apply_checksum(ack,9);
+                        uart_apply_checksum(ack,9);
                         strcat(ack,"\n\r");
                         err = uart_tx(uart_dev, ack, strlen(ack), SYS_FOREVER_MS);
                         if (err) {

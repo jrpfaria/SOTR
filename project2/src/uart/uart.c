@@ -1,7 +1,7 @@
-#include "../rtdb/rtdb.h"
 #include <stdlib.h>
 #include <stdio.h>
 #include <ctype.h>
+#include "uart.h"
 
 char uart_lut(char c) {
     if (isdigit(c)) {
@@ -14,7 +14,7 @@ char uart_lut(char c) {
     }
 }
 
-int checkSum(char* cmd){
+int uart_checkSum(char* cmd){
     int i = -1, sum = 0, checksum = 0;
     i = strlen(cmd)-2;
     
@@ -29,7 +29,7 @@ int checkSum(char* cmd){
     return sum == checksum;
 }
 
-char* apply_checksum(char* cmd, int size){
+char* uart_apply_checksum(char* cmd, int size){
     int sum = 0;
 
     for(int i = 1; i < size - 3; i++)
@@ -46,13 +46,45 @@ char* apply_checksum(char* cmd, int size){
     return strcat(cmd, checksumDigits);
 }
 
+char* generate_io_payload(unsigned char c){
+    char* payload = malloc(4 * sizeof(char));
+    
+    for (int i = 0; i < 4; i++){
+        // não sei como queremos o payload, se é 1100 ou 0011 tendo em conta como estão as coisas na db
+        // payload[3-i] = (c & (1 << i)) ? '1' : '0'; db(C) -> 1100
+        payload[i] = (c & (1 << i)) ? '1' : '0'; // db(C) -> 0011
+    }
+
+    printk("payload: %s\n", payload);
+
+    return payload;
+}
+
+char* generate_temp_payload(int* temp, int size){
+    char* payload = malloc(sizeof(char) * 3 * size);
+
+    for (int i = 0; i < size; i++){
+        for (int j = 0; j < 2; j++){
+            if (j == 0) payload[3*i] = temp[i] < 0 ? '-' : '+';
+            else
+                payload[3*i + 1] = abs(temp[i]) / 10 + '0',
+                payload[3*i + 2] = abs(temp[i]) % 10 + '0';
+        }
+    }
+
+    printf("payload: %s\n", payload);
+
+    return payload;
+}
+
 char* uart_interface(RTDB* db, char* cmd){
-    printf("cmd: %s\n", cmd);
+    printk("cmd: %s\n", cmd);
 
     int index;
-    char bin;
-    int high, low;
-    int temps[20];
+    unsigned char bin;
+    unsigned char* payload;
+    unsigned char* response;
+    int highlow[2], temps[20];
 
     if (cmd[1] == '0'){
         switch (cmd[2])
@@ -76,18 +108,27 @@ char* uart_interface(RTDB* db, char* cmd){
                 printk("Case 2; Getting All Inputs\n");
                 unsigned char i = rtdb_get_inputs(db);
                 printf("i: %x\n", i);
+                payload = generate_io_payload(i);
+                response = strcat("!1A", payload);
+                // apply checksum and send cmd
                 break;
 
             case '3':
                 printk("Case 3; Getting All Outputs\n");
                 unsigned char o = rtdb_get_outputs(db);
                 printf("o: %x\n", o);
+                payload = generate_io_payload(o);
+                response = strcat("!1B", payload);
+                // apply checksum and send cmd
                 break;
 
             case '4':
                 printk("Case 4; Getting Last Temp\n");
                 int last_temp = rtdb_get_last_temp(db);
                 printf("last_temp: %d\n", last_temp);
+                payload = generate_temp_payload(&last_temp, 1);
+                response = strcat("!1C", payload);
+                // apply checksum and send cmd
                 break;
 
             case '5':
@@ -97,13 +138,19 @@ char* uart_interface(RTDB* db, char* cmd){
                 for (int i = 0; i < 20; i++)
                     printk("%d, ", temps[i]);
                 printk("\n");
+                payload = generate_temp_payload(temps, 20);
+                response = strcat("!1D", payload);
+                // apply checksum and send cmd
                 break;
 
             case '6':
                 printk("Case 6; Getting High and Low\n");
-                high = rtdb_get_high(db);
-                low = rtdb_get_low(db);
-                printk("high: %d   | low: %d \n", high, low);
+                highlow[0] = rtdb_get_high(db);
+                highlow[1] = rtdb_get_low(db);
+                printk("high: %d   | low: %d \n", highlow[0], highlow[1]);
+                payload = generate_temp_payload(highlow, 2);
+                response = strcat("!1E", payload);
+                // apply checksum and send cmd
                 break;
 
             case '7':
@@ -114,9 +161,9 @@ char* uart_interface(RTDB* db, char* cmd){
                 for (int i = 0; i < 20; i++)
                     printk("%d, ", temps[i]);
                 printk("\n");
-                high = rtdb_get_high(db);
-                low = rtdb_get_low(db);
-                printk("high: %d   | low: %d \n", high, low);
+                highlow[0] = rtdb_get_high(db);
+                highlow[1] = rtdb_get_low(db);
+                printk("high: %d   | low: %d \n", highlow[0], highlow[1]);
                 break;
                 
             default: break;
