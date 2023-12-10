@@ -25,6 +25,7 @@
 #include <zephyr/drivers/uart.h>    /* for ADC API*/
 #include <zephyr/sys/printk.h>      /* for printk()*/
 #include <stdio.h>                  /* for sprintf() */
+#include <zephyr/sys/sem.h>
 #include <stdlib.h>
 #include <string.h>
 #include "uart/uart.h"
@@ -52,6 +53,7 @@ const struct device *uart_dev = DEVICE_DT_GET(UART_NODE);
 static uint8_t rx_buf[RXBUF_SIZE];      /* RX buffer, to store received data */
 static uint8_t rx_chars[RXBUF_SIZE];    /* chars actually received  */
 volatile int uart_rxbuf_nchar=0;        /* Number of chars currrntly on the rx buffer */
+struct k_sem uart_sem;
 
 /* UART callback function prototype */
 static void uart_cb(const struct device *dev, struct uart_event *evt, void *user_data);
@@ -65,6 +67,7 @@ void main(void)
     int err=0; /* Generic error variable */
     uint8_t welcome_mesg[] = "UART demo: Type a few chars in a row and then pause for a little while ...\n\r"; 
     uint8_t rep_mesg[TXBUF_SIZE];
+    k_sem_init(&uart_sem, 0, 1);
 
     /* Configure UART */
     err = uart_configure(uart_dev, &uart_cfg);
@@ -95,6 +98,7 @@ void main(void)
         return;
     }
 	RTDB* db = rtdb_create();
+    k_sem_give(&uart_sem);
 
 	char buffer[64] = {0};
 	int i = 0;
@@ -167,6 +171,14 @@ void main(void)
                         }
                         char* response = uart_interface(db, msg);
                         printk("response: %s\n",response);
+                        while(k_sem_take(&uart_sem, K_MSEC(100)) != 0){
+                            err = uart_tx(uart_dev, response, sizeof(response), SYS_FOREVER_MS);
+                            if (err) {
+                                printk("uart_tx() error. Error code:%d\n\r",err);
+                                k_sem_give(&uart_sem);
+                                return;
+                            }
+                        }
                     } else {
                         strcat(ack,"3");
                         uart_apply_checksum(ack,9);
@@ -208,6 +220,7 @@ static void uart_cb(const struct device *dev, struct uart_event *evt, void *user
 	
         case UART_TX_DONE:
 		    printk("UART_TX_DONE event \n\r");
+            k_sem_give(&uart_sem);
             break;
 
     	case UART_TX_ABORTED:
