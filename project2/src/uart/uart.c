@@ -72,7 +72,7 @@ char* generate_temp_payload(int* temp, int size){
         }
     }
 
-    printf("payload: %s\n", payload);
+    printk("payload: %s\n", payload);
 
     return payload;
 }
@@ -94,42 +94,39 @@ char* uart_interface(RTDB* db, char* cmd){
                 index = (int) uart_lut(cmd[3]);
                 bin = uart_lut(cmd[4]);
                 rtdb_set_output_at_index(db, --index, bin);
-                printf("outputs: %x\n", rtdb_get_outputs(db));
+                printk("outputs: %x\n", rtdb_get_outputs(db));
                 break;
             
             case '1':
                 printk("Case 1; Setting All Outputs\n");
                 bin = uart_lut(cmd[3]);
                 rtdb_set_outputs(db, bin);
-                printf("outputs: %x\n", rtdb_get_outputs(db));
+                printk("outputs: %x\n", rtdb_get_outputs(db));
                 break;
 
             case '2':
                 printk("Case 2; Getting All Inputs\n");
                 unsigned char i = rtdb_get_inputs(db);
-                printf("i: %x\n", i);
+                printk("i: %x\n", i);
                 payload = generate_io_payload(i);
                 response = strcat("!1A", payload);
-                // apply checksum and send cmd
-                break;
+                return uart_apply_checksum(response, strlen(response+4));
 
             case '3':
                 printk("Case 3; Getting All Outputs\n");
                 unsigned char o = rtdb_get_outputs(db);
-                printf("o: %x\n", o);
+                printk("o: %x\n", o);
                 payload = generate_io_payload(o);
                 response = strcat("!1B", payload);
-                // apply checksum and send cmd
-                break;
+                return uart_apply_checksum(response, strlen(response+4));
 
             case '4':
                 printk("Case 4; Getting Last Temp\n");
                 int last_temp = rtdb_get_last_temp(db);
-                printf("last_temp: %d\n", last_temp);
+                printk("last_temp: %d\n", last_temp);
                 payload = generate_temp_payload(&last_temp, 1);
                 response = strcat("!1C", payload);
-                // apply checksum and send cmd
-                break;
+                return uart_apply_checksum(response, strlen(response+4));
 
             case '5':
                 printk("Case 5; Getting Temps\n");
@@ -140,8 +137,8 @@ char* uart_interface(RTDB* db, char* cmd){
                 printk("\n");
                 payload = generate_temp_payload(temps, 20);
                 response = strcat("!1D", payload);
-                // apply checksum and send cmd
-                break;
+                return uart_apply_checksum(response, strlen(response+4));
+
 
             case '6':
                 printk("Case 6; Getting High and Low\n");
@@ -150,8 +147,7 @@ char* uart_interface(RTDB* db, char* cmd){
                 printk("high: %d   | low: %d \n", highlow[0], highlow[1]);
                 payload = generate_temp_payload(highlow, 2);
                 response = strcat("!1E", payload);
-                // apply checksum and send cmd
-                break;
+                return uart_apply_checksum(response, strlen(response+4));
 
             case '7':
                 printk("Case 7; Resetting history\n");
@@ -164,8 +160,8 @@ char* uart_interface(RTDB* db, char* cmd){
                 highlow[0] = rtdb_get_high(db);
                 highlow[1] = rtdb_get_low(db);
                 printk("high: %d   | low: %d \n", highlow[0], highlow[1]);
-                break;
-                
+                return uart_apply_checksum(response, strlen(response+4));
+       
             default: break;
         }
     }
