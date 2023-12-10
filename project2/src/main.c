@@ -134,10 +134,10 @@ void main(void)
                     msg[l] = temp;
                     l--, j++;
                 }
+                char ack[30] = "!1Z";
+                char id[2] = {msg[2], '\0'};
+                strcat(ack,id);
                 if(errCode == '4'){
-                    char ack[30] = "!1Z";
-                    char id[2] = {msg[2], '\0'};
-                    strcat(ack,id);
                     strcat(ack,"4");
                     uart_apply_checksum(ack,9);
                     strcat(ack,"\n\r");
@@ -147,10 +147,6 @@ void main(void)
                         return;
                     }
                 } else if(msg[2] < 0x30 || msg[2] > 0x37){
-                    printk("msg[2]: %d\n",msg[2]);
-                    char ack[30] = "!1Z";
-                    char id[2] = {msg[2], '\0'};
-                    strcat(ack,id);
                     strcat(ack,"2");
                     uart_apply_checksum(ack,9);
                     strcat(ack,"\n\r");
@@ -161,9 +157,6 @@ void main(void)
                     }
                 } else {
                     if(uart_checkSum(msg)){
-                        char ack[30] = "!1Z";
-                        char id[2] = {msg[2],'\0'};
-                        strcat(ack,id);
                         strcat(ack,"1");
                         uart_apply_checksum(ack,9);
                         strcat(ack,"\n\r");
@@ -172,11 +165,9 @@ void main(void)
                             printk("uart_tx() error. Error code:%d\n\r",err);
                             return;
                         }
-                        uart_interface(db, msg);
+                        char* response = uart_interface(db, msg);
+                        printk("response: %s\n",response);
                     } else {
-                        char ack[30] = "!1Z";
-                        char id[2] = {msg[2], '\0'};
-                        strcat(ack,id);
                         strcat(ack,"3");
                         uart_apply_checksum(ack,9);
                         strcat(ack,"\n\r");
@@ -211,16 +202,16 @@ void main(void)
 /* Should be kept as short and simple as possible. Heavier processing should be deferred to a task with suitable priority*/
 static void uart_cb(const struct device *dev, struct uart_event *evt, void *user_data)
 {
-    // int err;
+    int err;
 
     switch (evt->type) {
 	
         case UART_TX_DONE:
-		    // printk("UART_TX_DONE event \n\r");
+		    printk("UART_TX_DONE event \n\r");
             break;
 
     	case UART_TX_ABORTED:
-	    	// printk("UART_TX_ABORTED event \n\r");
+	    	printk("UART_TX_ABORTED event \n\r");
 		    break;
 		
 	    case UART_RX_RDY:
@@ -231,30 +222,30 @@ static void uart_cb(const struct device *dev, struct uart_event *evt, void *user
 		    break;
 
 	    case UART_RX_BUF_REQUEST:
-		    // printk("UART_RX_BUF_REQUEST event \n\r");
+		    printk("UART_RX_BUF_REQUEST event \n\r");
 		    break;
 
 	    case UART_RX_BUF_RELEASED:
-		    // printk("UART_RX_BUF_RELEASED event \n\r");
+		    printk("UART_RX_BUF_RELEASED event \n\r");
 		    break;
 		
 	    case UART_RX_DISABLED: 
             /* When the RX_BUFF becomes full RX is is disabled automaticaly.  */
             /* It must be re-enabled manually for continuous reception */
-            // printk("UART_RX_DISABLED event \n\r");
-		    // err =  uart_rx_enable(uart_dev ,rx_buf,sizeof(rx_buf),RX_TIMEOUT);
-            // if (err) {
-            //     printk("uart_rx_enable() error. Error code:%d\n\r",err);
-            //     exit(FATAL_ERR);                
-            // }
+            printk("UART_RX_DISABLED event \n\r");
+		    err =  uart_rx_enable(uart_dev ,rx_buf,sizeof(rx_buf),RX_TIMEOUT);
+            if (err) {
+                printk("uart_rx_enable() error. Error code:%d\n\r",err);
+                exit(FATAL_ERR);                
+            }
 		    break;
 
 	    case UART_RX_STOPPED:
-		    // printk("UART_RX_STOPPED event \n\r");
+		    printk("UART_RX_STOPPED event \n\r");
 		    break;
 		
 	    default:
-            // printk("UART: unknown event \n\r");
+            printk("UART: unknown event \n\r");
 		    break;
     }
 
