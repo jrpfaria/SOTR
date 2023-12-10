@@ -50,9 +50,8 @@ char* generate_io_payload(unsigned char c){
     char* payload = malloc(4 * sizeof(char));
     
     for (int i = 0; i < 4; i++){
-        // não sei como queremos o payload, se é 1100 ou 0011 tendo em conta como estão as coisas na db
-        // payload[3-i] = (c & (1 << i)) ? '1' : '0'; db(C) -> 1100
-        payload[i] = (c & (1 << i)) ? '1' : '0'; // db(C) -> 0011
+        payload[3-i] = (c & (1 << i)) ? '1' : '0'; // db(C) -> 1100
+        // payload[i] = (c & (1 << i)) ? '1' : '0'; // db(C) -> 0011
     }
 
     printk("payload: %s\n", payload);
