@@ -3,41 +3,51 @@
 #include <ctype.h>
 #include "uart.h"
 
-char uart_lut(char c) {
-    if (isdigit(c)) {
+char uart_lut(char c)
+{
+    if (isdigit(c))
+    {
         return c - '0';
-    } else if (isxdigit(c)) {
+    }
+    else if (isxdigit(c))
+    {
         return toupper(c) - 'A' + 10;
-    } else {
+    }
+    else
+    {
         // Handle invalid characters if needed
         return 0; // Default value for invalid characters
     }
 }
 
-int uart_checkSum(char* cmd){
+int uart_checkSum(char *cmd)
+{
     int i = -1, sum = 0, checksum = 0;
-    i = strlen(cmd)-2;
-    
+    i = strlen(cmd) - 2;
+
     int aux_iterator = i - 3;
     int aux_multiplier = 1;
-    
+
     for (; i > aux_iterator; i--, aux_multiplier *= 10)
         sum += (cmd[i] - '0') * aux_multiplier;
 
-    for (; i > 0; i--) checksum += cmd[i];
+    for (; i > 0; i--)
+        checksum += cmd[i];
 
     return sum == checksum;
 }
 
-char* uart_apply_checksum(char* cmd, int size){
+char *uart_apply_checksum(char *cmd, int size)
+{
     int sum = 0;
 
-    for(int i = 1; i < size - 3; i++)
+    for (int i = 1; i < size - 3; i++)
         sum += cmd[i];
-    
+
     char checksumDigits[5];
 
-    for(int i = 2; i >= 0; i--){
+    for (int i = 2; i >= 0; i--)
+    {
         checksumDigits[i] = (sum % 10) + '0';
         sum /= 10;
     }
@@ -47,11 +57,14 @@ char* uart_apply_checksum(char* cmd, int size){
     return strcat(cmd, checksumDigits);
 }
 
-char* uart_generate_io_payload(unsigned char c){
-    char* payload = (char*)malloc(sizeof(char)*5);
-    if(payload == NULL) printk("failed\n");
-    
-    for (int i = 0; i < 4; i++){
+char *uart_generate_io_payload(unsigned char c)
+{
+    char *payload = (char *)malloc(sizeof(char) * 5);
+    if (payload == NULL)
+        printk("failed\n");
+
+    for (int i = 0; i < 4; i++)
+    {
         // payload[3-i] = (c & (1 << i)) ? '1' : '0'; // db(C) -> 1100
         payload[i] = (c & (1 << i)) ? '1' : '0'; // db(C) -> 0011
     }
@@ -60,112 +73,118 @@ char* uart_generate_io_payload(unsigned char c){
     return payload;
 }
 
-char* uart_generate_temp_payload(int* temp, int size){
-    char* payload = malloc(3*sizeof(char)*size+sizeof(char));
-    if(payload == NULL) printk("failed\n");
+char *uart_generate_temp_payload(int *temp, int size)
+{
+    char *payload = malloc(3 * sizeof(char) * size + sizeof(char));
+    if (payload == NULL)
+        printk("failed\n");
 
-    for (int i = 0; i < size; i++){
-        payload[3*i] = temp[i] < 0 ? '-' : '+';
-        payload[3*i + 1] = abs(temp[i]) / 10 + '0',
-        payload[3*i + 2] = abs(temp[i]) % 10 + '0';
+    for (int i = 0; i < size; i++)
+    {
+        payload[3 * i] = temp[i] < 0 ? '-' : '+';
+        payload[3 * i + 1] = abs(temp[i]) / 10 + '0',
+                        payload[3 * i + 2] = abs(temp[i]) % 10 + '0';
     }
 
-    payload[3*size] = '\0';
+    payload[3 * size] = '\0';
 
     return payload;
 }
 
-char* create_response(char* cmd, char* payload){
-    char* response = malloc(strlen(cmd)+strlen(payload)+sizeof(char)*4); //!1A + payload + checksum + #
+char *create_response(char *cmd, char *payload)
+{
+    char *response = malloc(strlen(cmd) + strlen(payload) + sizeof(char) * 4); //! 1A + payload + checksum + #
 
     response[0] = '\0';
-    strcat(response,cmd);
-    strcat(response,payload);
-    uart_apply_checksum(response, strlen(response)+4);
+    strcat(response, cmd);
+    strcat(response, payload);
+    uart_apply_checksum(response, strlen(response) + 4);
     return response;
 }
 
-char* uart_interface(RTDB* db, char* cmd){
+char *uart_interface(RTDB *db, char *cmd)
+{
     printk("cmd: %s\n", cmd);
 
     int index;
     unsigned char bin;
-    char* payload;
+    char *payload;
     int highlow[2], temps[20];
 
-    if (cmd[1] == '0'){
+    if (cmd[1] == '0')
+    {
         switch (cmd[2])
         {
-            case '0':
-                printk("Case 0; Setting Output at Index\n");
-                index = (int) uart_lut(cmd[3]);
-                bin = uart_lut(cmd[4]);
-                rtdb_set_output_at_index(db, --index, bin);
-                printk("outputs: %x\n", rtdb_get_outputs(db));
-                break;
-            
-            case '1':
-                printk("Case 1; Setting All Outputs\n");
-                bin = uart_lut(cmd[3]);
-                rtdb_set_outputs(db, bin);
-                printk("outputs: %x\n", rtdb_get_outputs(db));
-                break;
+        case '0':
+            printk("Case 0; Setting Output at Index\n");
+            index = (int)uart_lut(cmd[3]);
+            bin = uart_lut(cmd[4]);
+            rtdb_set_output_at_index(db, --index, bin);
+            printk("outputs: %x\n", rtdb_get_outputs(db));
+            return "\n\r";
 
-            case '2':
-                printk("Case 2; Getting All Inputs\n");
-                unsigned char i = rtdb_get_inputs(db);
-                printk("i: %x\n", i);
-                payload = uart_generate_io_payload(i);
-                return create_response("!1A",payload);
+        case '1':
+            printk("Case 1; Setting All Outputs\n");
+            bin = uart_lut(cmd[3]);
+            rtdb_set_outputs(db, bin);
+            printk("outputs: %x\n", rtdb_get_outputs(db));
+            return "\n\r";
 
-            case '3':
-                printk("Case 3; Getting All Outputs\n");
-                unsigned char o = rtdb_get_outputs(db);
-                printk("o: %x\n", o);
-                payload = uart_generate_io_payload(o);
-                return create_response("!1B",payload);;
+        case '2':
+            printk("Case 2; Getting All Inputs\n");
+            unsigned char i = rtdb_get_inputs(db);
+            printk("i: %x\n", i);
+            payload = uart_generate_io_payload(i);
+            return create_response("!1A", payload);
 
-            case '4':
-                printk("Case 4; Getting Last Temp\n");
-                int last_temp = rtdb_get_last_temp(db);
-                printk("last_temp: %d\n", last_temp);
-                payload = uart_generate_temp_payload(&last_temp, 1);
-                return create_response("!1C",payload);
+        case '3':
+            printk("Case 3; Getting All Outputs\n");
+            unsigned char o = rtdb_get_outputs(db);
+            printk("o: %x\n", o);
+            payload = uart_generate_io_payload(o);
+            return create_response("!1B", payload);
+            ;
 
-            case '5':
-                printk("Case 5; Getting Temps\n");
-                rtdb_get_temps(db, temps);
-                printk("temps: ");
-                for (int i = 0; i < 20; i++)
-                    printk("%d, ", temps[i]);
-                printk("\n");
-                payload = uart_generate_temp_payload(temps, 20);
-                return create_response("!1D",payload);
+        case '4':
+            printk("Case 4; Getting Last Temp\n");
+            int last_temp = rtdb_get_last_temp(db);
+            printk("last_temp: %d\n", last_temp);
+            payload = uart_generate_temp_payload(&last_temp, 1);
+            return create_response("!1C", payload);
 
+        case '5':
+            printk("Case 5; Getting Temps\n");
+            rtdb_get_temps(db, temps);
+            printk("temps: ");
+            for (int i = 0; i < 20; i++)
+                printk("%d, ", temps[i]);
+            printk("\n");
+            payload = uart_generate_temp_payload(temps, 20);
+            return create_response("!1D", payload);
 
-            case '6':
-                printk("Case 6; Getting High and Low\n");
-                highlow[0] = rtdb_get_high(db);
-                highlow[1] = rtdb_get_low(db);
-                printk("high: %d   | low: %d \n", highlow[0], highlow[1]);
-                payload = uart_generate_temp_payload(highlow, 2);
-                return create_response("!1E",payload);
+        case '6':
+            printk("Case 6; Getting High and Low\n");
+            highlow[0] = rtdb_get_high(db);
+            highlow[1] = rtdb_get_low(db);
+            printk("high: %d   | low: %d \n", highlow[0], highlow[1]);
+            payload = uart_generate_temp_payload(highlow, 2);
+            return create_response("!1E", payload);
 
-            case '7':
-                printk("Case 7; Resetting history\n");
-                rtdb_reset_temp_history(db);
-                rtdb_get_temps(db, temps);
-                printk("temps: ");
-                for (int i = 0; i < 20; i++)
-                    printk("%d, ", temps[i]);
-                printk("\n");
-                highlow[0] = rtdb_get_high(db);
-                highlow[1] = rtdb_get_low(db);
-                printk("high: %d   | low: %d \n", highlow[0], highlow[1]);
-                char* response;
-                return uart_apply_checksum(response, strlen(response)+4);
-       
-            default: break;
+        case '7':
+            printk("Case 7; Resetting history\n");
+            rtdb_reset_temp_history(db);
+            rtdb_get_temps(db, temps);
+            printk("temps: ");
+            for (int i = 0; i < 20; i++)
+                printk("%d, ", temps[i]);
+            printk("\n");
+            highlow[0] = rtdb_get_high(db);
+            highlow[1] = rtdb_get_low(db);
+            printk("high: %d   | low: %d \n", highlow[0], highlow[1]);
+            return "\n\r";
+
+        default:
+            break;
         }
     }
     return "";

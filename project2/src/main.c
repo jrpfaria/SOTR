@@ -23,6 +23,7 @@
 #include <zephyr/device.h>        /* for device_is_ready() and device structure */
 #include <zephyr/devicetree.h>    /* for DT_NODELABEL() */
 #include <zephyr/drivers/uart.h>  /* for ADC API*/
+#include <zephyr/drivers/gpio.h>  /* for GPIO API*/
 #include <zephyr/sys/printk.h>    /* for printk()*/
 #include <stdio.h>                /* for sprintf() */
 #include <zephyr/timing/timing.h> /* Kernel timing services */
@@ -55,6 +56,36 @@
 #define BTNS_period 4000
 #define TC74_period 4000
 
+/* Macros */
+#define ACK_MSG_SIZE 9
+
+/* IO Setup */
+// Buttons
+#define SW0_NODE DT_ALIAS(sw0)
+static const struct gpio_dt_spec but0 = GPIO_DT_SPEC_GET_OR(SW0_NODE, gpios, {0});
+
+#define SW1_NODE DT_ALIAS(sw1)
+static const struct gpio_dt_spec but1 = GPIO_DT_SPEC_GET_OR(SW1_NODE, gpios, {0});
+
+#define SW2_NODE DT_ALIAS(sw2)
+static const struct gpio_dt_spec bu22 = GPIO_DT_SPEC_GET_OR(SW2_NODE, gpios, {0});
+
+#define SW3_NODE DT_ALIAS(sw3)
+static const struct gpio_dt_spec but3 = GPIO_DT_SPEC_GET_OR(SW3_NODE, gpios, {0});
+
+// LEDs
+#define LED0_NODE DT_ALIAS(led0)
+static const struct gpio_dt_spec led0 = GPIO_DT_SPEC_GET_OR(LED0_NODE, gpios, {0});
+
+#define LED1_NODE DT_ALIAS(led1)
+static const struct gpio_dt_spec led1 = GPIO_DT_SPEC_GET_OR(LED1_NODE, gpios, {0});
+
+#define LED2_NODE DT_ALIAS(led2)
+static const struct gpio_dt_spec led2 = GPIO_DT_SPEC_GET_OR(LED2_NODE, gpios, {0});
+
+#define LED3_NODE DT_ALIAS(led3)
+static const struct gpio_dt_spec led3 = GPIO_DT_SPEC_GET_OR(LED3_NODE, gpios, {0});
+
 /* Create thread stack space */
 K_THREAD_STACK_DEFINE(UART_stack, STACK_SIZE);
 K_THREAD_STACK_DEFINE(LEDS_stack, STACK_SIZE);
@@ -75,7 +106,7 @@ k_tid_t TC74_tid;
 
 /* Thread code prototypes */
 void UART_code(void *argA, void *argB, void *argC);
-void LEDS_code(void *argA, void *argB, void *argC);
+void LEDS_code(RTDB *db, void *argB, void *argC);
 void BTNS_code(void *argA, void *argB, void *argC);
 void TC74_code(void *argA, void *argB, void *argC);
 
@@ -179,14 +210,60 @@ static void uart_cb(const struct device *dev, struct uart_event *evt, void *user
     }
 }
 
+char *rcv_msg(char *buffer, int i, char *errCode)
+{
+    int k = 0;
+    char *msg = malloc(sizeof(char) * 30);
+
+    // Read one command
+    while (buffer[i] != '!')
+    {
+        msg[k] = buffer[i];
+
+        if (-1 == --i)
+            i = 63;
+
+        if (29 == ++k)
+        {
+            printk("message too long: %d\n", k);
+            memset(msg, 0, 30);
+            memcpy(errCode, "4", 1);
+            break;
+        }
+
+        if (buffer[i] == '#')
+        {
+            printk("bad message\n");
+            memset(msg, 0, 30);
+            memcpy(errCode, "4", 1);
+            break;
+        }
+    }
+
+    // Add '!' to the end of the command message
+    msg[k] = '!';
+    msg[++k] = '\0';
+
+    // Reverse the command message
+    int j = 0, l = strlen(msg) - 1;
+    char temp;
+    while (j < l)
+    {
+        temp = msg[j];
+        msg[j] = msg[l];
+        msg[l] = temp;
+        l--, j++;
+    }
+
+    return msg;
+}
+
 void UART_code(void *argA, void *argB, void *argC)
 {
 
     /* Local vars */
     int err = 0; /* Generic error variable */
-    uint8_t welcome_mesg[] = "UART demo: Type a few chars in a row and then pause for a little while ...\n\r";
     uint8_t rep_mesg[TXBUF_SIZE];
-    k_sem_init(&uart_sem, 0, 1);
 
     /* Configure UART */
     err = uart_configure(uart_dev, &uart_cfg);
@@ -212,24 +289,35 @@ void UART_code(void *argA, void *argB, void *argC)
         return;
     }
 
-    /* Send a welcome message */
-    /* Last arg is timeout. Only relevant if flow controll is used */
-    err = uart_tx(uart_dev, welcome_mesg, sizeof(welcome_mesg), SYS_FOREVER_MS);
-    if (err)
-    {
-        printk("uart_tx() error. Error code:%d\n\r", err);
-        return;
-    }
     RTDB *db = rtdb_create();
-    k_sem_give(&uart_sem);
 
     char buffer[64] = {0};
     int i = 0;
+    char retransmission[70];
+    int64_t fin_time = 0, release_time = 0;
+
+    // Flag to wait for ACK
+    int waitAck = 0;
 
     /* Main loop */
     while (1)
     {
         k_msleep(MAIN_SLEEP_TIME_MS);
+        if (waitAck)
+        {
+            fin_time = k_uptime_get();
+            if (fin_time > release_time)
+            {
+                release_time = fin_time + 5000;
+                err = uart_tx(uart_dev, retransmission, strlen(retransmission), SYS_FOREVER_MS);
+                if (err)
+                {
+                    printk("uart_tx() error. Error code:%d\n\r", err);
+                    return;
+                }
+                k_msleep(1);
+            }
+        }
 
         /* Print string received so far. */
         /* Very basic implementation, just for showing the use of the API */
@@ -241,77 +329,39 @@ void UART_code(void *argA, void *argB, void *argC)
 
             buffer[i] = rx_chars[0];
 
-            sprintf(rep_mesg, "You typed [%s]\n\r", rx_chars);
+            sprintf(rep_mesg, "%s", rx_chars);
 
             if (rx_chars[0] == '#')
             {
-                char errCode = '1';
-                int k = 0;
-                char msg[30] = {0};
-                while (buffer[i] != '!')
-                {
-                    msg[k] = buffer[i];
-                    i--, k++;
-                    if (k > 28)
-                    {
-                        printk("message too long: %d\n", k);
-                        memset(msg, 0, 30);
-                        errCode = '4';
-                        break;
-                    }
-                    if (i < 0)
-                        i = 63;
-                    if (buffer[i] == '#')
-                    {
-                        printk("bad message\n");
-                        memset(msg, 0, 30);
-                        errCode = '4';
-                        break;
-                    }
-                }
-                msg[k] = '!';
-                int j = 0, l = strlen(msg) - 1;
-                char temp;
-                while (j < l)
-                {
-                    temp = msg[j];
-                    msg[j] = msg[l];
-                    msg[l] = temp;
-                    l--, j++;
-                }
-                char ack[30] = "!1Z";
-                char id[2] = {msg[2], '\0'};
-                strcat(ack, id);
-                if (errCode == '4')
-                {
-                    strcat(ack, "4");
-                    uart_apply_checksum(ack, 9);
-                    strcat(ack, "\n\r");
-                    err = uart_tx(uart_dev, ack, strlen(ack), SYS_FOREVER_MS);
-                    if (err)
-                    {
-                        printk("uart_tx() error. Error code:%d\n\r", err);
-                        return;
-                    }
-                }
-                else if (msg[2] < 0x30 || msg[2] > 0x37)
-                {
-                    strcat(ack, "2");
-                    uart_apply_checksum(ack, 9);
-                    strcat(ack, "\n\r");
-                    err = uart_tx(uart_dev, ack, strlen(ack), SYS_FOREVER_MS);
-                    if (err)
-                    {
-                        printk("uart_tx() error. Error code:%d\n\r", err);
-                        return;
-                    }
-                }
-                else
+                char errCode;
+                char *msg = rcv_msg(buffer, i, &errCode);
+
+                if (waitAck)
                 {
                     if (uart_checkSum(msg))
+                        waitAck = 0;
+                    else
                     {
-                        strcat(ack, "1");
-                        uart_apply_checksum(ack, 9);
+                        err = uart_tx(uart_dev, retransmission, strlen(retransmission), SYS_FOREVER_MS);
+                        if (err)
+                        {
+                            printk("uart_tx() error. Error code:%d\n\r", err);
+                            return;
+                        }
+                        k_msleep(1);
+                    }
+                }
+
+                else
+                {
+                    // Send ACK
+                    char ack[30] = "!1Z";
+                    char id[2] = {msg[2], '\0'};
+                    strcat(ack, id);
+                    if (errCode == '4')
+                    {
+                        strcat(ack, "4");
+                        uart_apply_checksum(ack, ACK_MSG_SIZE);
                         strcat(ack, "\n\r");
                         err = uart_tx(uart_dev, ack, strlen(ack), SYS_FOREVER_MS);
                         if (err)
@@ -319,50 +369,75 @@ void UART_code(void *argA, void *argB, void *argC)
                             printk("uart_tx() error. Error code:%d\n\r", err);
                             return;
                         }
-                        char *response = uart_interface(db, msg);
-                        printk("response: %s\n", response);
-                        // while(k_sem_take(&uart_sem, K_MSEC(100)) != 0){
-                        printk("size: %d\n", strlen(response));
-                        for (int i = 0; i < strlen(response); i++)
-                            printk("%x ", response[i]);
-                        printk("\n");
+                        k_msleep(1);
+                    }
 
-                        err = uart_tx(uart_dev, response, strlen(response), SYS_FOREVER_MS);
+                    else if (msg[2] < '0' || msg[2] > '7')
+                    {
+                        strcat(ack, "2");
+                        uart_apply_checksum(ack, ACK_MSG_SIZE);
+                        strcat(ack, "\n\r");
+                        err = uart_tx(uart_dev, ack, strlen(ack), SYS_FOREVER_MS);
                         if (err)
                         {
                             printk("uart_tx() error. Error code:%d\n\r", err);
                             return;
                         }
-                        k_msleep(10);
-                        // printk("here\n");
+                        k_msleep(1);
                     }
+
                     else
                     {
-                        printk("bad checksum\n");
-                        strcat(ack, "3");
-                        uart_apply_checksum(ack, 9);
-                        strcat(ack, "\n\r");
-                        printk("value: %d\n", k_sem_count_get(&uart_sem));
-                        while (k_sem_take(&uart_sem, K_MSEC(100)) != 0)
+                        if (uart_checkSum(msg)) // Checksum is correct
                         {
-                            printk("after sem\n");
-                            err = uart_tx(uart_dev, ack, sizeof(ack), SYS_FOREVER_MS);
+                            strcat(ack, "1");
+                            uart_apply_checksum(ack, ACK_MSG_SIZE);
+                            strcat(ack, "\n\r");
+                            err = uart_tx(uart_dev, ack, strlen(ack), SYS_FOREVER_MS);
                             if (err)
                             {
                                 printk("uart_tx() error. Error code:%d\n\r", err);
                                 return;
                             }
+                            char *response = uart_interface(db, msg);
+
+                            err = uart_tx(uart_dev, response, strlen(response), SYS_FOREVER_MS);
+                            if (err)
+                            {
+                                printk("uart_tx() error. Error code:%d\n\r", err);
+                                return;
+                            }
+                            printk("here\n");
+                            k_msleep(1);
+                            waitAck = 1;
+                            release_time = k_uptime_get() + 5000;
+                            printk("here\n");
+                            memcpy(retransmission, response, strlen(response) + 4);
+                            printk("here\n");
+                            free(response);
                         }
-                        printk("value: %d\n", k_sem_count_get(&uart_sem));
+
+                        else
+                        {
+                            strcat(ack, "3");
+                            uart_apply_checksum(ack, ACK_MSG_SIZE);
+                            strcat(ack, "\n\r");
+                            err = uart_tx(uart_dev, ack, strlen(ack), SYS_FOREVER_MS);
+                            if (err)
+                            {
+                                printk("uart_tx() error. Error code:%d\n\r", err);
+                                return;
+                            }
+                            k_msleep(1);
+                        }
+                        memset(msg, 0, 30);
                     }
-                    memset(msg, 0, 30);
                 }
+                free(msg);
             }
 
-            if (i == 63)
-                i = 0;
-            else
-                i++;
+            // it should only go up to 63 due to buffer size
+            i = ++i % 64;
 
             err = uart_tx(uart_dev, rep_mesg, strlen(rep_mesg), SYS_FOREVER_MS);
             if (err)
@@ -374,6 +449,45 @@ void UART_code(void *argA, void *argB, void *argC)
         // printk(".\n");
     }
 }
-void LEDS_code(void *argA, void *argB, void *argC) {}
+
+void LEDS_code(RTDB *db, void *argB, void *argC)
+{
+    int ret = 0;
+
+    if (!device_is_ready(led0.port) || !device_is_ready(led1.port) || !device_is_ready(led2.port) || !device_is_ready(led3.port))
+        return; // If any of the devices is not ready, return
+
+    ret = gpio_pin_configure_dt(&led0, GPIO_OUTPUT_ACTIVE);
+    if (ret < 0)
+        return;
+
+    ret = gpio_pin_configure_dt(&led1, GPIO_OUTPUT_ACTIVE);
+    if (ret < 0)
+        return;
+
+    ret = gpio_pin_configure_dt(&led2, GPIO_OUTPUT_ACTIVE);
+    if (ret < 0)
+        return;
+
+    ret = gpio_pin_configure_dt(&led3, GPIO_OUTPUT_ACTIVE);
+    if (ret < 0)
+        return;
+
+    gpio_pin_set_dt(&led0, 0);
+    gpio_pin_set_dt(&led1, 0);
+    gpio_pin_set_dt(&led2, 0);
+    gpio_pin_set_dt(&led3, 0);
+
+    while (1)
+    {
+        k_msleep(LEDS_period);
+        char o = rtdb_get_outputs(db);
+        gpio_pin_set_dt(&led0, o & 0x01);
+        gpio_pin_set_dt(&led1, o & 0x02);
+        gpio_pin_set_dt(&led2, o & 0x04);
+        gpio_pin_set_dt(&led3, o & 0x08);
+    }
+}
+
 void BTNS_code(void *argA, void *argB, void *argC) {}
 void TC74_code(void *argA, void *argB, void *argC) {}
