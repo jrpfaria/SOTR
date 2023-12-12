@@ -41,7 +41,7 @@
 #define RX_TIMEOUT 1000                 /* Inactivity period after the instant when last char was received that triggers an rx event (in us) */
 
 /* Size of stack area used by each thread (can be thread specific, if necessary)*/
-#define STACK_SIZE 1024
+#define STACK_SIZE 8192
 
 /* Thread scheduling priority */
 #define UART_prio 1
@@ -299,10 +299,10 @@ void UART_code(void *argA, void *argB, void *argC){
                         err = uart_tx(uart_dev, response, strlen(response), SYS_FOREVER_MS);
                         if (err) {
                             printk("uart_tx() error. Error code:%d\n\r",err);
-                            k_sem_give(&uart_sem);
                             return;
                         }
-                        // }
+                        k_msleep(10);
+                        // printk("here\n");
                     } else {
                         printk("bad checksum\n");
                         strcat(ack,"3");
