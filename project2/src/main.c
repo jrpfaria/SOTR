@@ -111,6 +111,17 @@ void main(void)
     UART_tid = k_thread_create(&UART_data, UART_stack,
         K_THREAD_STACK_SIZEOF(UART_stack), UART_code,
         NULL,NULL,NULL, UART_prio, 0, K_NO_WAIT);
+
+    while(1){
+        k_msleep(1000);
+        // char response[] = "hello alive hello alive hello alive hello alive hello alive hello alive\n";
+        // int err = uart_tx(uart_dev, response, strlen(response), SYS_FOREVER_MS);
+        // if (err) {
+        //     printk("uart_tx() error. Error code:%d\n\r",err);
+        //     k_sem_give(&uart_sem);
+        //     return;
+        // }
+    }
  
 }
 
@@ -127,7 +138,6 @@ static void uart_cb(const struct device *dev, struct uart_event *evt, void *user
 	
         case UART_TX_DONE:
 		    printk("UART_TX_DONE event \n\r");
-            k_sem_give(&uart_sem);
             break;
 
     	case UART_TX_ABORTED:
@@ -135,7 +145,7 @@ static void uart_cb(const struct device *dev, struct uart_event *evt, void *user
 		    break;
 		
 	    case UART_RX_RDY:
-		    // printk("UART_RX_RDY event \n\r");
+		    printk("UART_RX_RDY event \n\r");
             /* Just copy data to a buffer. Usually it is preferable to use e.g. a FIFO to communicate with a task that shall process the messages*/
             memcpy(&rx_chars[uart_rxbuf_nchar],&(rx_buf[evt->data.rx.offset]),evt->data.rx.len);
             uart_rxbuf_nchar++;
@@ -274,30 +284,40 @@ void UART_code(void *argA, void *argB, void *argC){
                         strcat(ack,"1");
                         uart_apply_checksum(ack,9);
                         strcat(ack,"\n\r");
-                        err = uart_tx(uart_dev, ack, sizeof(ack), SYS_FOREVER_MS);
+                        err = uart_tx(uart_dev, ack, strlen(ack), SYS_FOREVER_MS);
                         if (err) {
                             printk("uart_tx() error. Error code:%d\n\r",err);
                             return;
                         }
                         char* response = uart_interface(db, msg);
                         printk("response: %s\n",response);
-                        while(k_sem_take(&uart_sem, K_MSEC(100)) != 0){
-                            err = uart_tx(uart_dev, response, sizeof(response), SYS_FOREVER_MS);
-                            if (err) {
-                                printk("uart_tx() error. Error code:%d\n\r",err);
-                                k_sem_give(&uart_sem);
-                                return;
-                            }
+                        // while(k_sem_take(&uart_sem, K_MSEC(100)) != 0){
+                        printk("size: %d\n",strlen(response));
+                        for(int i=0;i<strlen(response);i++) printk("%x ",response[i]);
+                        printk("\n");
+
+                        err = uart_tx(uart_dev, response, strlen(response), SYS_FOREVER_MS);
+                        if (err) {
+                            printk("uart_tx() error. Error code:%d\n\r",err);
+                            k_sem_give(&uart_sem);
+                            return;
                         }
+                        // }
                     } else {
+                        printk("bad checksum\n");
                         strcat(ack,"3");
                         uart_apply_checksum(ack,9);
                         strcat(ack,"\n\r");
-                        err = uart_tx(uart_dev, ack, strlen(ack), SYS_FOREVER_MS);
-                        if (err) {
-                            printk("uart_tx() error. Error code:%d\n\r",err);
-                            return;
+                        printk("value: %d\n",k_sem_count_get(&uart_sem));
+                        while(k_sem_take(&uart_sem, K_MSEC(100)) != 0){
+                            printk("after sem\n");
+                            err = uart_tx(uart_dev, ack, sizeof(ack), SYS_FOREVER_MS);
+                            if (err) {
+                                printk("uart_tx() error. Error code:%d\n\r",err);
+                                return;
+                            }
                         }
+                        printk("value: %d\n",k_sem_count_get(&uart_sem));
                     }
                     memset(msg,0,30);
                 }
