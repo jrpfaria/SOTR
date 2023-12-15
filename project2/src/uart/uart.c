@@ -93,12 +93,13 @@ char *uart_generate_temp_payload(int *temp, int size)
 
 char *create_response(char *cmd, char *payload)
 {
-    char *response = malloc(strlen(cmd) + strlen(payload) + sizeof(char) * 4); //! 1A + payload + checksum + #
+    char *response = malloc(strlen(cmd) + strlen(payload) + sizeof(char) * 6); //cmd + payload + checksum + #\n\n
 
     response[0] = '\0';
     strcat(response, cmd);
     strcat(response, payload);
     uart_apply_checksum(response, strlen(response) + 4);
+    strcat(response,"\r\n");
     return response;
 }
 
@@ -121,14 +122,14 @@ char *uart_interface(RTDB *db, char *cmd)
             bin = uart_lut(cmd[4]);
             rtdb_set_output_at_index(db, --index, bin);
             printk("outputs: %x\n", rtdb_get_outputs(db));
-            return "\n\r";
+            return "\r\n";
 
         case '1':
             printk("Case 1; Setting All Outputs\n");
             bin = uart_lut(cmd[3]);
             rtdb_set_outputs(db, bin);
             printk("outputs: %x\n", rtdb_get_outputs(db));
-            return "\n\r";
+            return "\r\n";
 
         case '2':
             printk("Case 2; Getting All Inputs\n");
@@ -181,7 +182,7 @@ char *uart_interface(RTDB *db, char *cmd)
             highlow[0] = rtdb_get_high(db);
             highlow[1] = rtdb_get_low(db);
             printk("high: %d   | low: %d \n", highlow[0], highlow[1]);
-            return "\n\r";
+            return "\r\n";
 
         default:
             break;

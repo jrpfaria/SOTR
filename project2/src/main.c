@@ -27,6 +27,7 @@
 #include <zephyr/sys/printk.h>    /* for printk()*/
 #include <stdio.h>                /* for sprintf() */
 #include <zephyr/timing/timing.h> /* Kernel timing services */
+#include <zephyr/drivers/i2c.h>   /* Required for  I2C */
 #include <zephyr/sys/sem.h>
 #include <stdlib.h>
 #include <string.h>
@@ -105,10 +106,10 @@ k_tid_t BTNS_tid;
 k_tid_t TC74_tid;
 
 /* Thread code prototypes */
-void UART_code(void *argA, void *argB, void *argC);
+void UART_code(RTDB *db, void *argB, void *argC);
 void LEDS_code(RTDB *db, void *argB, void *argC);
-void BTNS_code(void *argA, void *argB, void *argC);
-void TC74_code(void *argA, void *argB, void *argC);
+void BTNS_code(RTDB *db, void *argB, void *argC);
+void TC74_code(RTDB *db, void *argB, void *argC);
 
 /* Define timers for tasks activations */
 K_TIMER_DEFINE(UART_timer, NULL, NULL);
@@ -131,15 +132,38 @@ static uint8_t rx_chars[RXBUF_SIZE]; /* chars actually received  */
 volatile int uart_rxbuf_nchar = 0;   /* Number of chars currrntly on the rx buffer */
 struct k_sem uart_sem;
 
+#define RETRANSMISSION_DELAY_MS 5000 /* Time between retransmissions*/
+
 /* UART callback function prototype */
 static void uart_cb(const struct device *dev, struct uart_event *evt, void *user_data);
+
+/* TC74 sensor-related defines */
+#define TC74_ADDR 0x4D /* TC74 Address *** NOTE: CHECK THE SENSOR DATASHEET ADDRESS CAN BE DIFFERENT*** */
+                        /* Do not forget to make sure that this address in set on the overlay file      */ 
+                        /*    as the sensor address is obtained from the DT */
+
+#define TC74_CMD_RTR 0x00   /* Read temperature command */
+#define TC74_CMD_RWCR 0x01  /* Read/write configuration register */
+
+/* I2C device vars and defines */
+#define I2C0_NID DT_NODELABEL(tc74sensor)
+static const struct i2c_dt_spec dev_i2c = I2C_DT_SPEC_GET(I2C0_NID);
+
+/* Other defines*/
+#define TC74_UPDATE_PERIOD_MS 1000 /* Time between temperature readings */
 
 /* Main function */
 void main(void)
 {
+
+    RTDB *db = rtdb_create();
     UART_tid = k_thread_create(&UART_data, UART_stack,
                                K_THREAD_STACK_SIZEOF(UART_stack), UART_code,
-                               NULL, NULL, NULL, UART_prio, 0, K_NO_WAIT);
+                               db, NULL, NULL, UART_prio, 0, K_NO_WAIT);
+
+    TC74_tid = k_thread_create(&TC74_data, TC74_stack,
+                               K_THREAD_STACK_SIZEOF(TC74_stack), TC74_code,
+                               db, NULL, NULL, TC74_prio, 0, K_NO_WAIT);
 
     while (1)
     {
@@ -166,7 +190,7 @@ static void uart_cb(const struct device *dev, struct uart_event *evt, void *user
     {
 
     case UART_TX_DONE:
-        printk("UART_TX_DONE event \n\r");
+        // printk("UART_TX_DONE event \n\r");
         break;
 
     case UART_TX_ABORTED:
@@ -174,7 +198,7 @@ static void uart_cb(const struct device *dev, struct uart_event *evt, void *user
         break;
 
     case UART_RX_RDY:
-        printk("UART_RX_RDY event \n\r");
+        // printk("UART_RX_RDY event \n\r");
         /* Just copy data to a buffer. Usually it is preferable to use e.g. a FIFO to communicate with a task that shall process the messages*/
         memcpy(&rx_chars[uart_rxbuf_nchar], &(rx_buf[evt->data.rx.offset]), evt->data.rx.len);
         uart_rxbuf_nchar++;
@@ -258,7 +282,7 @@ char *rcv_msg(char *buffer, int i, char *errCode)
     return msg;
 }
 
-void UART_code(void *argA, void *argB, void *argC)
+void UART_code(RTDB *db, void *argB, void *argC)
 {
 
     /* Local vars */
@@ -289,8 +313,6 @@ void UART_code(void *argA, void *argB, void *argC)
         return;
     }
 
-    RTDB *db = rtdb_create();
-
     char buffer[64] = {0};
     int i = 0;
     char retransmission[70];
@@ -308,7 +330,7 @@ void UART_code(void *argA, void *argB, void *argC)
             fin_time = k_uptime_get();
             if (fin_time > release_time)
             {
-                release_time = fin_time + 5000;
+                release_time = fin_time + RETRANSMISSION_DELAY_MS;
                 err = uart_tx(uart_dev, retransmission, strlen(retransmission), SYS_FOREVER_MS);
                 if (err)
                 {
@@ -330,9 +352,25 @@ void UART_code(void *argA, void *argB, void *argC)
             buffer[i] = rx_chars[0];
 
             sprintf(rep_mesg, "%s", rx_chars);
+            err = uart_tx(uart_dev, rep_mesg, strlen(rep_mesg), SYS_FOREVER_MS);
+            if (err)
+            {
+                printk("uart_tx() error. Error code:%d\n\r", err);
+                return;
+            }
+            k_msleep(1);
 
             if (rx_chars[0] == '#')
             {
+                char newLine[] = "\r\n";
+                err = uart_tx(uart_dev, newLine, strlen(newLine), SYS_FOREVER_MS);
+                if (err)
+                {
+                    printk("uart_tx() error. Error code:%d\n\r", err);
+                    return;
+                }
+                k_msleep(1);
+
                 char errCode;
                 char *msg = rcv_msg(buffer, i, &errCode);
 
@@ -362,7 +400,7 @@ void UART_code(void *argA, void *argB, void *argC)
                     {
                         strcat(ack, "4");
                         uart_apply_checksum(ack, ACK_MSG_SIZE);
-                        strcat(ack, "\n\r");
+                        strcat(ack, "\r\n");
                         err = uart_tx(uart_dev, ack, strlen(ack), SYS_FOREVER_MS);
                         if (err)
                         {
@@ -376,7 +414,7 @@ void UART_code(void *argA, void *argB, void *argC)
                     {
                         strcat(ack, "2");
                         uart_apply_checksum(ack, ACK_MSG_SIZE);
-                        strcat(ack, "\n\r");
+                        strcat(ack, "\r\n");
                         err = uart_tx(uart_dev, ack, strlen(ack), SYS_FOREVER_MS);
                         if (err)
                         {
@@ -392,36 +430,37 @@ void UART_code(void *argA, void *argB, void *argC)
                         {
                             strcat(ack, "1");
                             uart_apply_checksum(ack, ACK_MSG_SIZE);
-                            strcat(ack, "\n\r");
+                            strcat(ack, "\r\n");
                             err = uart_tx(uart_dev, ack, strlen(ack), SYS_FOREVER_MS);
                             if (err)
                             {
                                 printk("uart_tx() error. Error code:%d\n\r", err);
                                 return;
                             }
+                            k_msleep(1);
                             char *response = uart_interface(db, msg);
 
-                            err = uart_tx(uart_dev, response, strlen(response), SYS_FOREVER_MS);
-                            if (err)
-                            {
-                                printk("uart_tx() error. Error code:%d\n\r", err);
-                                return;
+                            if(strlen(response) > 5){
+                                err = uart_tx(uart_dev, response, strlen(response), SYS_FOREVER_MS);
+                                if (err)
+                                {
+                                    printk("uart_tx() error. Error code:%d\n\r", err);
+                                    return;
+                                }
+                                k_msleep(1);
+                            
+                                waitAck = 1;
+                                release_time = k_uptime_get() + RETRANSMISSION_DELAY_MS;
+                                memcpy(retransmission, response, strlen(response) + 1);
+                                free(response);
                             }
-                            printk("here\n");
-                            k_msleep(1);
-                            waitAck = 1;
-                            release_time = k_uptime_get() + 5000;
-                            printk("here\n");
-                            memcpy(retransmission, response, strlen(response) + 4);
-                            printk("here\n");
-                            free(response);
                         }
 
                         else
                         {
                             strcat(ack, "3");
                             uart_apply_checksum(ack, ACK_MSG_SIZE);
-                            strcat(ack, "\n\r");
+                            strcat(ack, "\r\n");
                             err = uart_tx(uart_dev, ack, strlen(ack), SYS_FOREVER_MS);
                             if (err)
                             {
@@ -438,13 +477,6 @@ void UART_code(void *argA, void *argB, void *argC)
 
             // it should only go up to 63 due to buffer size
             i = ++i % 64;
-
-            err = uart_tx(uart_dev, rep_mesg, strlen(rep_mesg), SYS_FOREVER_MS);
-            if (err)
-            {
-                printk("uart_tx() error. Error code:%d\n\r", err);
-                return;
-            }
         }
         // printk(".\n");
     }
@@ -489,5 +521,36 @@ void LEDS_code(RTDB *db, void *argB, void *argC)
     }
 }
 
-void BTNS_code(void *argA, void *argB, void *argC) {}
-void TC74_code(void *argA, void *argB, void *argC) {}
+void BTNS_code(RTDB *db, void *argB, void *argC) {}
+void TC74_code(RTDB *db, void *argB, void *argC) {
+    int ret=0; /* General return variable */   
+    uint8_t temp=0; /* Temperature value (raw read from sensor)*/
+
+    printk("I2C demo - reads the temperature of a TC74 temperature sensor connected to I2C0\n\r");
+
+    if (!device_is_ready(dev_i2c.bus)) {
+	    printk("I2C bus %s is not ready!\n\r",dev_i2c.bus->name);
+	    return;
+    } else {
+        printk("I2C bus %s, device address %x ready\n\r",dev_i2c.bus->name, dev_i2c.addr);
+    }
+    
+    /* Write (command RTR) to set the read address to temperature */
+    /* Only necessary if a config done before (not the case), but let's stay in the safe side */
+    ret = i2c_write_dt(&dev_i2c, TC74_CMD_RTR, 1);
+    if(ret != 0){
+        printk("Failed to write to I2C device at address %x, register %x, ret. %d \n\r", dev_i2c.addr ,TC74_CMD_RTR,ret);
+    }
+    while(1) {
+        /* Read temperature register */       
+        ret = i2c_read_dt(&dev_i2c, &temp, sizeof(temp));
+        if(ret != 0){
+	        printk("Failed to read from I2C device at address %x, register  at Reg. %x, ret. %d \n\r", dev_i2c.addr,TC74_CMD_RTR, ret);      
+        }
+
+        rtdb_insert_temp(db,temp);
+        
+        /* Pause  */ 
+        k_msleep(TC74_UPDATE_PERIOD_MS);    
+    }
+}
