@@ -61,31 +61,25 @@
 #define ACK_MSG_SIZE 9
 
 /* IO Setup */
-// Buttons
-#define SW0_NODE DT_ALIAS(sw0)
-static const struct gpio_dt_spec but0 = GPIO_DT_SPEC_GET_OR(SW0_NODE, gpios, {0});
-
-#define SW1_NODE DT_ALIAS(sw1)
-static const struct gpio_dt_spec but1 = GPIO_DT_SPEC_GET_OR(SW1_NODE, gpios, {0});
-
-#define SW2_NODE DT_ALIAS(sw2)
-static const struct gpio_dt_spec bu22 = GPIO_DT_SPEC_GET_OR(SW2_NODE, gpios, {0});
-
-#define SW3_NODE DT_ALIAS(sw3)
-static const struct gpio_dt_spec but3 = GPIO_DT_SPEC_GET_OR(SW3_NODE, gpios, {0});
-
-// LEDs
+// LED nodes
 #define LED0_NODE DT_ALIAS(led0)
-static const struct gpio_dt_spec led0 = GPIO_DT_SPEC_GET_OR(LED0_NODE, gpios, {0});
-
+static const struct gpio_dt_spec led0 = GPIO_DT_SPEC_GET(LED0_NODE, gpios);
 #define LED1_NODE DT_ALIAS(led1)
-static const struct gpio_dt_spec led1 = GPIO_DT_SPEC_GET_OR(LED1_NODE, gpios, {0});
-
+static const struct gpio_dt_spec led1 = GPIO_DT_SPEC_GET(LED1_NODE, gpios);
 #define LED2_NODE DT_ALIAS(led2)
-static const struct gpio_dt_spec led2 = GPIO_DT_SPEC_GET_OR(LED2_NODE, gpios, {0});
-
+static const struct gpio_dt_spec led2 = GPIO_DT_SPEC_GET(LED2_NODE, gpios);
 #define LED3_NODE DT_ALIAS(led3)
-static const struct gpio_dt_spec led3 = GPIO_DT_SPEC_GET_OR(LED3_NODE, gpios, {0});
+static const struct gpio_dt_spec led3 = GPIO_DT_SPEC_GET(LED3_NODE, gpios);
+
+// Button nodes
+#define SW0_NODE DT_ALIAS(sw0)
+static const struct gpio_dt_spec btn0 = GPIO_DT_SPEC_GET(SW0_NODE, gpios);
+#define SW1_NODE DT_ALIAS(sw1)
+static const struct gpio_dt_spec btn1 = GPIO_DT_SPEC_GET(SW1_NODE, gpios);
+#define SW2_NODE DT_ALIAS(sw2)
+static const struct gpio_dt_spec btn2 = GPIO_DT_SPEC_GET(SW2_NODE, gpios);
+#define SW3_NODE DT_ALIAS(sw3)
+static const struct gpio_dt_spec btn3 = GPIO_DT_SPEC_GET(SW3_NODE, gpios);
 
 /* Create thread stack space */
 K_THREAD_STACK_DEFINE(UART_stack, STACK_SIZE);
@@ -139,11 +133,11 @@ static void uart_cb(const struct device *dev, struct uart_event *evt, void *user
 
 /* TC74 sensor-related defines */
 #define TC74_ADDR 0x4D /* TC74 Address *** NOTE: CHECK THE SENSOR DATASHEET ADDRESS CAN BE DIFFERENT*** */
-                        /* Do not forget to make sure that this address in set on the overlay file      */ 
-                        /*    as the sensor address is obtained from the DT */
+                       /* Do not forget to make sure that this address in set on the overlay file      */
+                       /*    as the sensor address is obtained from the DT */
 
-#define TC74_CMD_RTR 0x00   /* Read temperature command */
-#define TC74_CMD_RWCR 0x01  /* Read/write configuration register */
+#define TC74_CMD_RTR 0x00  /* Read temperature command */
+#define TC74_CMD_RWCR 0x01 /* Read/write configuration register */
 
 /* I2C device vars and defines */
 #define I2C0_NID DT_NODELABEL(tc74sensor)
@@ -440,7 +434,8 @@ void UART_code(RTDB *db, void *argB, void *argC)
                             k_msleep(1);
                             char *response = uart_interface(db, msg);
 
-                            if(strlen(response) > 5){
+                            if (strlen(response) > 5)
+                            {
                                 err = uart_tx(uart_dev, response, strlen(response), SYS_FOREVER_MS);
                                 if (err)
                                 {
@@ -448,7 +443,7 @@ void UART_code(RTDB *db, void *argB, void *argC)
                                     return;
                                 }
                                 k_msleep(1);
-                            
+
                                 waitAck = 1;
                                 release_time = k_uptime_get() + RETRANSMISSION_DELAY_MS;
                                 memcpy(retransmission, response, strlen(response) + 1);
@@ -484,73 +479,113 @@ void UART_code(RTDB *db, void *argB, void *argC)
 
 void LEDS_code(RTDB *db, void *argB, void *argC)
 {
-    int ret = 0;
+    int ret[4];
 
     if (!device_is_ready(led0.port) || !device_is_ready(led1.port) || !device_is_ready(led2.port) || !device_is_ready(led3.port))
-        return; // If any of the devices is not ready, return
-
-    ret = gpio_pin_configure_dt(&led0, GPIO_OUTPUT_ACTIVE);
-    if (ret < 0)
+    {
+        printk("Error: One or more GPIO output devices not ready\n");
         return;
+    }
 
-    ret = gpio_pin_configure_dt(&led1, GPIO_OUTPUT_ACTIVE);
-    if (ret < 0)
+    ret[0] = gpio_pin_configure_dt(&led0, GPIO_OUTPUT_ACTIVE);
+    ret[1] = gpio_pin_configure_dt(&led1, GPIO_OUTPUT_ACTIVE);
+    ret[2] = gpio_pin_configure_dt(&led2, GPIO_OUTPUT_ACTIVE);
+    ret[3] = gpio_pin_configure_dt(&led3, GPIO_OUTPUT_ACTIVE);
+
+    if (ret[0] < 0 || ret[1] < 0 || ret[2] < 0 || ret[3] < 0)
+    {
+        printk("Error configuring GPIO output pins: %d, %d, %d, %d\n", ret[0], ret[1], ret[2], ret[3]);
         return;
-
-    ret = gpio_pin_configure_dt(&led2, GPIO_OUTPUT_ACTIVE);
-    if (ret < 0)
-        return;
-
-    ret = gpio_pin_configure_dt(&led3, GPIO_OUTPUT_ACTIVE);
-    if (ret < 0)
-        return;
-
-    gpio_pin_set_dt(&led0, 0);
-    gpio_pin_set_dt(&led1, 0);
-    gpio_pin_set_dt(&led2, 0);
-    gpio_pin_set_dt(&led3, 0);
+    }
 
     while (1)
     {
         k_msleep(LEDS_period);
-        char o = rtdb_get_outputs(db);
-        gpio_pin_set_dt(&led0, o & 0x01);
-        gpio_pin_set_dt(&led1, o & 0x02);
-        gpio_pin_set_dt(&led2, o & 0x04);
-        gpio_pin_set_dt(&led3, o & 0x08);
+        unsigned char leds = rtdb_get_outputs(db);
+        printk("leds: %x\n", leds);
+
+        // Change masks to match rtdb order if necessary
+        gpio_pin_set(led0.port, led0.pin, leds & 0x01);
+        gpio_pin_set(led1.port, led1.pin, leds & 0x02);
+        gpio_pin_set(led2.port, led2.pin, leds & 0x04);
+        gpio_pin_set(led3.port, led3.pin, leds & 0x08);
     }
 }
 
-void BTNS_code(RTDB *db, void *argB, void *argC) {}
-void TC74_code(RTDB *db, void *argB, void *argC) {
-    int ret=0; /* General return variable */   
-    uint8_t temp=0; /* Temperature value (raw read from sensor)*/
+void BTNS_code(RTDB *db, void *argB, void *argC)
+{
+    int ret[4];
+
+    if (!device_is_ready(btn0.port) || !device_is_ready(btn1.port) || !device_is_ready(btn2.port) || !device_is_ready(btn3.port))
+    {
+        printk("Error: One or more GPIO input devices not ready\n");
+        return;
+    }
+
+    ret[0] = gpio_pin_configure_dt(&btn0, GPIO_INPUT);
+    ret[1] = gpio_pin_configure_dt(&btn1, GPIO_INPUT);
+    ret[2] = gpio_pin_configure_dt(&btn2, GPIO_INPUT);
+    ret[3] = gpio_pin_configure_dt(&btn3, GPIO_INPUT);
+
+    if (ret[0] < 0 || ret[1] < 0 || ret[2] < 0 || ret[3] < 0)
+    {
+        printk("Error configuring GPIO input pins: %d, %d, %d, %d\n", ret[0], ret[1], ret[2], ret[3]);
+        return;
+    }
+
+    while (1)
+    {
+        k_msleep(BTNS_period);
+        unsigned char btns = 0;
+
+        // Change masks to match rtdb order if necessary
+        btns |= gpio_pin_get(btn0.port, btn0.pin) ? 0x01 : 0x00;
+        btns |= gpio_pin_get(btn1.port, btn1.pin) ? 0x02 : 0x00;
+        btns |= gpio_pin_get(btn2.port, btn2.pin) ? 0x04 : 0x00;
+        btns |= gpio_pin_get(btn3.port, btn3.pin) ? 0x08 : 0x00;
+
+        printk("buttons: %x\n", btns);
+
+        rtdb_set_inputs(db, btns);
+    }
+}
+
+void TC74_code(RTDB *db, void *argB, void *argC)
+{
+    int ret = 0;      /* General return variable */
+    uint8_t temp = 0; /* Temperature value (raw read from sensor)*/
 
     printk("I2C demo - reads the temperature of a TC74 temperature sensor connected to I2C0\n\r");
 
-    if (!device_is_ready(dev_i2c.bus)) {
-	    printk("I2C bus %s is not ready!\n\r",dev_i2c.bus->name);
-	    return;
-    } else {
-        printk("I2C bus %s, device address %x ready\n\r",dev_i2c.bus->name, dev_i2c.addr);
+    if (!device_is_ready(dev_i2c.bus))
+    {
+        printk("I2C bus %s is not ready!\n\r", dev_i2c.bus->name);
+        return;
     }
-    
+    else
+    {
+        printk("I2C bus %s, device address %x ready\n\r", dev_i2c.bus->name, dev_i2c.addr);
+    }
+
     /* Write (command RTR) to set the read address to temperature */
     /* Only necessary if a config done before (not the case), but let's stay in the safe side */
     ret = i2c_write_dt(&dev_i2c, TC74_CMD_RTR, 1);
-    if(ret != 0){
-        printk("Failed to write to I2C device at address %x, register %x, ret. %d \n\r", dev_i2c.addr ,TC74_CMD_RTR,ret);
+    if (ret != 0)
+    {
+        printk("Failed to write to I2C device at address %x, register %x, ret. %d \n\r", dev_i2c.addr, TC74_CMD_RTR, ret);
     }
-    while(1) {
-        /* Read temperature register */       
+    while (1)
+    {
+        /* Read temperature register */
         ret = i2c_read_dt(&dev_i2c, &temp, sizeof(temp));
-        if(ret != 0){
-	        printk("Failed to read from I2C device at address %x, register  at Reg. %x, ret. %d \n\r", dev_i2c.addr,TC74_CMD_RTR, ret);      
+        if (ret != 0)
+        {
+            printk("Failed to read from I2C device at address %x, register  at Reg. %x, ret. %d \n\r", dev_i2c.addr, TC74_CMD_RTR, ret);
         }
 
-        rtdb_insert_temp(db,temp);
-        
-        /* Pause  */ 
-        k_msleep(TC74_UPDATE_PERIOD_MS);    
+        rtdb_insert_temp(db, temp);
+
+        /* Pause  */
+        k_msleep(TC74_UPDATE_PERIOD_MS);
     }
 }
