@@ -159,6 +159,14 @@ void main(void)
                                K_THREAD_STACK_SIZEOF(TC74_stack), TC74_code,
                                db, NULL, NULL, TC74_prio, 0, K_NO_WAIT);
 
+    LEDS_tid = k_thread_create(&LEDS_data, LEDS_stack,
+                               K_THREAD_STACK_SIZEOF(LEDS_stack), LEDS_code,
+                               db, NULL, NULL, LEDS_prio, 0, K_NO_WAIT);
+
+    BTNS_tid = k_thread_create(&BTNS_data, BTNS_stack,
+                               K_THREAD_STACK_SIZEOF(BTNS_stack), BTNS_code,
+                               db, NULL, NULL, BTNS_prio, 0, K_NO_WAIT);
+
     while (1)
     {
         k_msleep(1000);
