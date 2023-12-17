@@ -81,6 +81,9 @@ static const struct gpio_dt_spec btn2 = GPIO_DT_SPEC_GET(SW2_NODE, gpios);
 #define SW3_NODE DT_ALIAS(sw3)
 static const struct gpio_dt_spec btn3 = GPIO_DT_SPEC_GET(SW3_NODE, gpios);
 
+// Button call back
+static struct gpio_callback button_cb_data;
+
 /* Create thread stack space */
 K_THREAD_STACK_DEFINE(UART_stack, STACK_SIZE);
 K_THREAD_STACK_DEFINE(LEDS_stack, STACK_SIZE);
@@ -100,6 +103,7 @@ k_tid_t BTNS_tid;
 k_tid_t TC74_tid;
 
 /* Thread code prototypes */
+void button_pressed(struct gpio_callback *cb);
 void UART_code(RTDB *db, void *argB, void *argC);
 void LEDS_code(RTDB *db, void *argB, void *argC);
 void BTNS_code(RTDB *db, void *argB, void *argC);
@@ -489,6 +493,7 @@ void LEDS_code(RTDB *db, void *argB, void *argC)
 {
     int ret[4];
 
+    // Check if GPIO devices are ready
     if (!device_is_ready(led0.port) || !device_is_ready(led1.port) || !device_is_ready(led2.port) || !device_is_ready(led3.port))
     {
         printk("Error: One or more GPIO output devices not ready\n");
@@ -500,6 +505,7 @@ void LEDS_code(RTDB *db, void *argB, void *argC)
     ret[2] = gpio_pin_configure_dt(&led2, GPIO_OUTPUT_ACTIVE);
     ret[3] = gpio_pin_configure_dt(&led3, GPIO_OUTPUT_ACTIVE);
 
+    // Check if GPIO devices are configured correctly
     if (ret[0] < 0 || ret[1] < 0 || ret[2] < 0 || ret[3] < 0)
     {
         printk("Error configuring GPIO output pins: %d, %d, %d, %d\n", ret[0], ret[1], ret[2], ret[3]);
@@ -524,6 +530,7 @@ void BTNS_code(RTDB *db, void *argB, void *argC)
 {
     int ret[4];
 
+    // Check if GPIO devices are ready
     if (!device_is_ready(btn0.port) || !device_is_ready(btn1.port) || !device_is_ready(btn2.port) || !device_is_ready(btn3.port))
     {
         printk("Error: One or more GPIO input devices not ready\n");
@@ -535,11 +542,18 @@ void BTNS_code(RTDB *db, void *argB, void *argC)
     ret[2] = gpio_pin_configure_dt(&btn2, GPIO_INPUT);
     ret[3] = gpio_pin_configure_dt(&btn3, GPIO_INPUT);
 
+    // Check if GPIO devices are configured correctly
     if (ret[0] < 0 || ret[1] < 0 || ret[2] < 0 || ret[3] < 0)
     {
         printk("Error configuring GPIO input pins: %d, %d, %d, %d\n", ret[0], ret[1], ret[2], ret[3]);
         return;
     }
+
+    gpio_init_callback(&button_cb_data, button_pressed, BIT(btn0.pin) | BIT(btn1.pin) | BIT(btn2.pin) | BIT(btn3.pin));
+    gpio_add_callback(btn0.port, &button_cb_data);
+    gpio_add_callback(btn1.port, &button_cb_data);
+    gpio_add_callback(btn2.port, &button_cb_data);
+    gpio_add_callback(btn3.port, &button_cb_data);
 
     while (1)
     {
@@ -596,4 +610,18 @@ void TC74_code(RTDB *db, void *argB, void *argC)
         /* Pause  */
         k_msleep(TC74_UPDATE_PERIOD_MS);
     }
+}
+
+void button_pressed(struct gpio_callback *cb)
+{
+    int i = 0;
+
+    if (gpio_pin_get(btn0.port, btn0.pin))
+        printk("Button 1 pressed\n");
+    if (gpio_pin_get(btn1.port, btn1.pin))
+        printk("Button 2 pressed\n");
+    if (gpio_pin_get(btn2.port, btn2.pin))
+        printk("Button 3 pressed\n");
+    if (gpio_pin_get(btn3.port, btn3.pin))
+        printk("Button 4 pressed\n");
 }
