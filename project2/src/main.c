@@ -84,6 +84,8 @@ static const struct gpio_dt_spec btn3 = GPIO_DT_SPEC_GET(SW3_NODE, gpios);
 // Button call back
 static struct gpio_callback button_cb_data;
 
+static unsigned char buttons_pressed = 0x0;
+
 /* Create thread stack space */
 K_THREAD_STACK_DEFINE(UART_stack, STACK_SIZE);
 K_THREAD_STACK_DEFINE(LEDS_stack, STACK_SIZE);
@@ -103,7 +105,7 @@ k_tid_t BTNS_tid;
 k_tid_t TC74_tid;
 
 /* Thread code prototypes */
-void button_pressed(struct gpio_callback *cb);
+void button_pressed(struct gpio_callback *);
 void UART_code(RTDB *db, void *argB, void *argC);
 void LEDS_code(RTDB *db, void *argB, void *argC);
 void BTNS_code(RTDB *db, void *argB, void *argC);
@@ -549,6 +551,18 @@ void BTNS_code(RTDB *db, void *argB, void *argC)
         return;
     }
 
+    ret[0] = gpio_pin_interrupt_configure_dt(&btn0, GPIO_INT_EDGE_TO_ACTIVE);
+    ret[1] = gpio_pin_interrupt_configure_dt(&btn1, GPIO_INT_EDGE_TO_ACTIVE);
+    ret[2] = gpio_pin_interrupt_configure_dt(&btn2, GPIO_INT_EDGE_TO_ACTIVE);
+    ret[3] = gpio_pin_interrupt_configure_dt(&btn3, GPIO_INT_EDGE_TO_ACTIVE);
+
+    // Check if GPIO devices are configured correctly
+    if (ret[0] < 0 || ret[1] < 0 || ret[2] < 0 || ret[3] < 0)
+    {
+        printk("Error configuring GPIO interrupts: %d, %d, %d, %d\n", ret[0], ret[1], ret[2], ret[3]);
+        return;
+    }
+
     gpio_init_callback(&button_cb_data, button_pressed, BIT(btn0.pin) | BIT(btn1.pin) | BIT(btn2.pin) | BIT(btn3.pin));
     gpio_add_callback(btn0.port, &button_cb_data);
     gpio_add_callback(btn1.port, &button_cb_data);
@@ -561,10 +575,8 @@ void BTNS_code(RTDB *db, void *argB, void *argC)
         unsigned char btns = 0;
 
         // Change masks to match rtdb order if necessary
-        btns |= gpio_pin_get(btn0.port, btn0.pin) ? 0x01 : 0x00;
-        btns |= gpio_pin_get(btn1.port, btn1.pin) ? 0x02 : 0x00;
-        btns |= gpio_pin_get(btn2.port, btn2.pin) ? 0x04 : 0x00;
-        btns |= gpio_pin_get(btn3.port, btn3.pin) ? 0x08 : 0x00;
+        btns |= buttons_pressed;
+        buttons_pressed = 0x0;
 
         printk("buttons: %x\n", btns);
 
@@ -614,14 +626,20 @@ void TC74_code(RTDB *db, void *argB, void *argC)
 
 void button_pressed(struct gpio_callback *cb)
 {
-    int i = 0;
 
     if (gpio_pin_get(btn0.port, btn0.pin))
-        printk("Button 1 pressed\n");
+        buttons_pressed |= 0x01,
+            printk("Button 1 pressed\n");
+
     if (gpio_pin_get(btn1.port, btn1.pin))
-        printk("Button 2 pressed\n");
+        buttons_pressed |= 0x02,
+            printk("Button 2 pressed\n");
+
     if (gpio_pin_get(btn2.port, btn2.pin))
-        printk("Button 3 pressed\n");
+        buttons_pressed |= 0x04,
+            printk("Button 3 pressed\n");
+
     if (gpio_pin_get(btn3.port, btn3.pin))
-        printk("Button 4 pressed\n");
+        buttons_pressed |= 0x08,
+            printk("Button 4 pressed\n");
 }
