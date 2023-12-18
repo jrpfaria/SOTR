@@ -63,23 +63,32 @@
 /* IO Setup */
 // LED nodes
 #define LED0_NODE DT_ALIAS(led0)
-static const struct gpio_dt_spec led0 = GPIO_DT_SPEC_GET(LED0_NODE, gpios);
 #define LED1_NODE DT_ALIAS(led1)
-static const struct gpio_dt_spec led1 = GPIO_DT_SPEC_GET(LED1_NODE, gpios);
 #define LED2_NODE DT_ALIAS(led2)
-static const struct gpio_dt_spec led2 = GPIO_DT_SPEC_GET(LED2_NODE, gpios);
 #define LED3_NODE DT_ALIAS(led3)
-static const struct gpio_dt_spec led3 = GPIO_DT_SPEC_GET(LED3_NODE, gpios);
+static const struct gpio_dt_spec leds[] = {
+    GPIO_DT_SPEC_GET(LED0_NODE, gpios),
+    GPIO_DT_SPEC_GET(LED1_NODE, gpios),
+    GPIO_DT_SPEC_GET(LED2_NODE, gpios),
+    GPIO_DT_SPEC_GET(LED3_NODE, gpios)
+};
 
 // Button nodes
 #define SW0_NODE DT_ALIAS(sw0)
-static const struct gpio_dt_spec btn0 = GPIO_DT_SPEC_GET(SW0_NODE, gpios);
 #define SW1_NODE DT_ALIAS(sw1)
-static const struct gpio_dt_spec btn1 = GPIO_DT_SPEC_GET(SW1_NODE, gpios);
 #define SW2_NODE DT_ALIAS(sw2)
-static const struct gpio_dt_spec btn2 = GPIO_DT_SPEC_GET(SW2_NODE, gpios);
 #define SW3_NODE DT_ALIAS(sw3)
-static const struct gpio_dt_spec btn3 = GPIO_DT_SPEC_GET(SW3_NODE, gpios);
+static const struct gpio_dt_spec buttons[] = {
+    GPIO_DT_SPEC_GET(SW0_NODE, gpios),
+    GPIO_DT_SPEC_GET(SW1_NODE, gpios),
+    GPIO_DT_SPEC_GET(SW2_NODE, gpios),
+    GPIO_DT_SPEC_GET(SW3_NODE, gpios)
+};
+
+// Button call back
+static struct gpio_callback button_cb_data;
+
+static unsigned char buttons_pressed = 0x0;
 
 /* Create thread stack space */
 K_THREAD_STACK_DEFINE(UART_stack, STACK_SIZE);
@@ -100,6 +109,7 @@ k_tid_t BTNS_tid;
 k_tid_t TC74_tid;
 
 /* Thread code prototypes */
+void button_pressed(struct gpio_callback *);
 void UART_code(RTDB *db, void *argB, void *argC);
 void LEDS_code(RTDB *db, void *argB, void *argC);
 void BTNS_code(RTDB *db, void *argB, void *argC);
@@ -489,57 +499,65 @@ void LEDS_code(RTDB *db, void *argB, void *argC)
 {
     int ret[4];
 
-    if (!device_is_ready(led0.port) || !device_is_ready(led1.port) || !device_is_ready(led2.port) || !device_is_ready(led3.port))
-    {
-        printk("Error: One or more GPIO output devices not ready\n");
-        return;
-    }
+    // Check if GPIO devices are ready
+    for(int i = 0; i < 4; i++)
+        if (!device_is_ready(leds[i].port))
+        {
+            printk("Error: GPIO %d output devices not ready\n", i);
+            return;
+        }
 
-    ret[0] = gpio_pin_configure_dt(&led0, GPIO_OUTPUT_ACTIVE);
-    ret[1] = gpio_pin_configure_dt(&led1, GPIO_OUTPUT_ACTIVE);
-    ret[2] = gpio_pin_configure_dt(&led2, GPIO_OUTPUT_ACTIVE);
-    ret[3] = gpio_pin_configure_dt(&led3, GPIO_OUTPUT_ACTIVE);
-
-    if (ret[0] < 0 || ret[1] < 0 || ret[2] < 0 || ret[3] < 0)
-    {
-        printk("Error configuring GPIO output pins: %d, %d, %d, %d\n", ret[0], ret[1], ret[2], ret[3]);
-        return;
-    }
+    // Check if GPIO devices are configured correctly
+    for (int i = 0; i < 4; i++)
+        if(gpio_pin_configure_dt(&leds[i], GPIO_OUTPUT_ACTIVE) < 0)
+        {
+            printk("Error: GPIO %d output devices not configured\n", i);
+            return;
+        }
 
     while (1)
     {
         k_msleep(LEDS_period);
-        unsigned char leds = rtdb_get_outputs(db);
-        printk("leds: %x\n", leds);
+        unsigned char o = rtdb_get_outputs(db);
+        printk("leds: %x\n", o);
 
-        // Change masks to match rtdb order if necessary
-        gpio_pin_set(led0.port, led0.pin, leds & 0x01);
-        gpio_pin_set(led1.port, led1.pin, leds & 0x02);
-        gpio_pin_set(led2.port, led2.pin, leds & 0x04);
-        gpio_pin_set(led3.port, led3.pin, leds & 0x08);
+        // Set LEDs to match rtdb values
+        for(int i = 0; i < 4; i++)
+            gpio_pin_set(leds[i].port, leds[i].pin, o & (0x01 << i));
     }
 }
 
+
 void BTNS_code(RTDB *db, void *argB, void *argC)
 {
-    int ret[4];
+    // Check if GPIO devices are ready
+    for(int i = 0; i < 4; i++)
+        if (!device_is_ready(buttons[i].port))
+        {
+            printk("Error: GPIO %d output devices not ready\n", i);
+            return;
+        }
 
-    if (!device_is_ready(btn0.port) || !device_is_ready(btn1.port) || !device_is_ready(btn2.port) || !device_is_ready(btn3.port))
-    {
-        printk("Error: One or more GPIO input devices not ready\n");
-        return;
-    }
+    // Check if GPIO devices are configured correctly
+    for (int i = 0; i < 4; i++)
+        if(gpio_pin_configure_dt(&buttons[i], GPIO_INPUT) < 0)
+        {
+            printk("Error: GPIO %d output devices not configured\n", i);
+            return;
+        }
 
-    ret[0] = gpio_pin_configure_dt(&btn0, GPIO_INPUT);
-    ret[1] = gpio_pin_configure_dt(&btn1, GPIO_INPUT);
-    ret[2] = gpio_pin_configure_dt(&btn2, GPIO_INPUT);
-    ret[3] = gpio_pin_configure_dt(&btn3, GPIO_INPUT);
+    // Configure GPIO devices' interrupts
+    for (int i = 0; i < 4; i++)
+        if(gpio_pin_interrupt_configure_dt(&buttons[i], GPIO_INT_EDGE_TO_ACTIVE) < 0)
+        {
+            printk("Error: GPIO %d interrupts not properly configured\n", i);
+            return;
+        }
 
-    if (ret[0] < 0 || ret[1] < 0 || ret[2] < 0 || ret[3] < 0)
-    {
-        printk("Error configuring GPIO input pins: %d, %d, %d, %d\n", ret[0], ret[1], ret[2], ret[3]);
-        return;
-    }
+    // Setup callback functions
+    gpio_init_callback(&button_cb_data, button_pressed, BIT(buttons[0].pin) | BIT(buttons[1].pin) | BIT(buttons[2].pin) | BIT(buttons[3].pin));
+    for (int i = 0; i < 4; i++)
+        gpio_add_callback(buttons[i].port, &button_cb_data);
 
     while (1)
     {
@@ -547,10 +565,8 @@ void BTNS_code(RTDB *db, void *argB, void *argC)
         unsigned char btns = 0;
 
         // Change masks to match rtdb order if necessary
-        btns |= gpio_pin_get(btn0.port, btn0.pin) ? 0x01 : 0x00;
-        btns |= gpio_pin_get(btn1.port, btn1.pin) ? 0x02 : 0x00;
-        btns |= gpio_pin_get(btn2.port, btn2.pin) ? 0x04 : 0x00;
-        btns |= gpio_pin_get(btn3.port, btn3.pin) ? 0x08 : 0x00;
+        btns |= buttons_pressed;
+        buttons_pressed = 0x0;
 
         printk("buttons: %x\n", btns);
 
@@ -586,14 +602,22 @@ void TC74_code(RTDB *db, void *argB, void *argC)
     {
         /* Read temperature register */
         ret = i2c_read_dt(&dev_i2c, &temp, sizeof(temp));
-        if (ret != 0)
-        {
-            printk("Failed to read from I2C device at address %x, register  at Reg. %x, ret. %d \n\r", dev_i2c.addr, TC74_CMD_RTR, ret);
-        }
+        // if (ret != 0)
+        // {
+        //     printk("Failed to read from I2C device at address %x, register  at Reg. %x, ret. %d \n\r", dev_i2c.addr, TC74_CMD_RTR, ret);
+        // }
 
         rtdb_insert_temp(db, temp);
 
         /* Pause  */
         k_msleep(TC74_UPDATE_PERIOD_MS);
     }
+}
+
+void button_pressed(struct gpio_callback *cb)
+{
+    for (int i = 0; i < 4; i++)
+        if (gpio_pin_get(buttons[i].port, buttons[i].pin))
+            buttons_pressed |= 0x01 << i,
+                printk("Button %d pressed\n", i + 1);
 }
