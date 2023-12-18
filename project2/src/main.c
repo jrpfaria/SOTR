@@ -602,10 +602,10 @@ void TC74_code(RTDB *db, void *argB, void *argC)
     {
         /* Read temperature register */
         ret = i2c_read_dt(&dev_i2c, &temp, sizeof(temp));
-        // if (ret != 0)
-        // {
-        //     printk("Failed to read from I2C device at address %x, register  at Reg. %x, ret. %d \n\r", dev_i2c.addr, TC74_CMD_RTR, ret);
-        // }
+        if (ret != 0)
+        {
+            printk("Failed to read from I2C device at address %x, register  at Reg. %x, ret. %d \n\r", dev_i2c.addr, TC74_CMD_RTR, ret);
+        }
 
         rtdb_insert_temp(db, temp);
 
