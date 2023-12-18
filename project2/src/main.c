@@ -156,6 +156,8 @@ static const struct i2c_dt_spec dev_i2c = I2C_DT_SPEC_GET(I2C0_NID);
 /* Other defines*/
 #define TC74_UPDATE_PERIOD_MS 1000 /* Time between temperature readings */
 
+#define DEBUG 0 /* set to one to toggle printks */
+
 /* Main function */
 void main(void)
 {
@@ -176,18 +178,6 @@ void main(void)
     BTNS_tid = k_thread_create(&BTNS_data, BTNS_stack,
                                K_THREAD_STACK_SIZEOF(BTNS_stack), BTNS_code,
                                db, NULL, NULL, BTNS_prio, 0, K_NO_WAIT);
-
-    while (1)
-    {
-        k_msleep(1000);
-        // char response[] = "hello alive hello alive hello alive hello alive hello alive hello alive\n";
-        // int err = uart_tx(uart_dev, response, strlen(response), SYS_FOREVER_MS);
-        // if (err) {
-        //     printk("uart_tx() error. Error code:%d\n\r",err);
-        //     k_sem_give(&uart_sem);
-        //     return;
-        // }
-    }
 }
 
 /* UART callback implementation */
@@ -202,7 +192,7 @@ static void uart_cb(const struct device *dev, struct uart_event *evt, void *user
     {
 
     case UART_TX_DONE:
-        // printk("UART_TX_DONE event \n\r");
+        if(DEBUG) printk("UART_TX_DONE event \n\r");
         break;
 
     case UART_TX_ABORTED:
@@ -210,7 +200,7 @@ static void uart_cb(const struct device *dev, struct uart_event *evt, void *user
         break;
 
     case UART_RX_RDY:
-        // printk("UART_RX_RDY event \n\r");
+        if(DEBUG) printk("UART_RX_RDY event \n\r");
         /* Just copy data to a buffer. Usually it is preferable to use e.g. a FIFO to communicate with a task that shall process the messages*/
         memcpy(&rx_chars[uart_rxbuf_nchar], &(rx_buf[evt->data.rx.offset]), evt->data.rx.len);
         uart_rxbuf_nchar++;
@@ -261,7 +251,7 @@ char *rcv_msg(char *buffer, int i, char *errCode)
 
         if (29 == ++k)
         {
-            printk("message too long: %d\n", k);
+            if(DEBUG) printk("message too long: %d\n", k);
             memset(msg, 0, 30);
             memcpy(errCode, "4", 1);
             break;
@@ -269,7 +259,7 @@ char *rcv_msg(char *buffer, int i, char *errCode)
 
         if (buffer[i] == '#')
         {
-            printk("bad message\n");
+            if(DEBUG) printk("bad message\n");
             memset(msg, 0, 30);
             memcpy(errCode, "4", 1);
             break;
@@ -519,7 +509,7 @@ void LEDS_code(RTDB *db, void *argB, void *argC)
     {
         k_msleep(LEDS_period);
         unsigned char o = rtdb_get_outputs(db);
-        printk("leds: %x\n", o);
+        if(DEBUG) printk("leds: %x\n", o);
 
         // Set LEDs to match rtdb values
         for(int i = 0; i < 4; i++)
@@ -562,15 +552,8 @@ void BTNS_code(RTDB *db, void *argB, void *argC)
     while (1)
     {
         k_msleep(BTNS_period);
-        unsigned char btns = 0;
-
-        // Change masks to match rtdb order if necessary
-        btns |= buttons_pressed;
+        rtdb_set_inputs(db, buttons_pressed);
         buttons_pressed = 0x0;
-
-        printk("buttons: %x\n", btns);
-
-        rtdb_set_inputs(db, btns);
     }
 }
 
@@ -578,8 +561,6 @@ void TC74_code(RTDB *db, void *argB, void *argC)
 {
     int ret = 0;      /* General return variable */
     uint8_t temp = 0; /* Temperature value (raw read from sensor)*/
-
-    printk("I2C demo - reads the temperature of a TC74 temperature sensor connected to I2C0\n\r");
 
     if (!device_is_ready(dev_i2c.bus))
     {
@@ -617,7 +598,8 @@ void TC74_code(RTDB *db, void *argB, void *argC)
 void button_pressed(struct gpio_callback *cb)
 {
     for (int i = 0; i < 4; i++)
-        if (gpio_pin_get(buttons[i].port, buttons[i].pin))
-            buttons_pressed |= 0x01 << i,
-                printk("Button %d pressed\n", i + 1);
+        if (gpio_pin_get(buttons[i].port, buttons[i].pin)){
+            buttons_pressed |= 0x01 << i;
+            if(DEBUG) printk("Button %d pressed\n", i + 1);
+        }
 }

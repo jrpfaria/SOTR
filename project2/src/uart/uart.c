@@ -3,6 +3,8 @@
 #include <ctype.h>
 #include "uart.h"
 
+#define DEBUG 0
+
 char uart_lut(char c)
 {
     if (isdigit(c))
@@ -105,7 +107,7 @@ char *create_response(char *cmd, char *payload)
 
 char *uart_interface(RTDB *db, char *cmd)
 {
-    printk("cmd: %s\n", cmd);
+    if(DEBUG) printk("cmd: %s\n", cmd);
 
     int index;
     unsigned char bin;
@@ -117,71 +119,75 @@ char *uart_interface(RTDB *db, char *cmd)
         switch (cmd[2])
         {
         case '0':
-            printk("Case 0; Setting Output at Index\n");
+            if(DEBUG) printk("Case 0; Setting Output at Index\n");
             index = (int)uart_lut(cmd[3]);
             bin = uart_lut(cmd[4]);
             rtdb_set_output_at_index(db, --index, bin);
-            printk("outputs: %x\n", rtdb_get_outputs(db));
+            if(DEBUG) printk("outputs: %x\n", rtdb_get_outputs(db));
             return "\r\n";
 
         case '1':
-            printk("Case 1; Setting All Outputs\n");
+            if(DEBUG) printk("Case 1; Setting All Outputs\n");
             bin = uart_lut(cmd[3]);
             rtdb_set_outputs(db, bin);
-            printk("outputs: %x\n", rtdb_get_outputs(db));
+            if(DEBUG) printk("outputs: %x\n", rtdb_get_outputs(db));
             return "\r\n";
 
         case '2':
-            printk("Case 2; Getting All Inputs\n");
+            if(DEBUG) printk("Case 2; Getting All Inputs\n");
             unsigned char i = rtdb_get_inputs(db);
-            printk("i: %x\n", i);
+            if(DEBUG) printk("i: %x\n", i);
             payload = uart_generate_io_payload(i);
             return create_response("!1A", payload);
 
         case '3':
-            printk("Case 3; Getting All Outputs\n");
+            if(DEBUG) printk("Case 3; Getting All Outputs\n");
             unsigned char o = rtdb_get_outputs(db);
-            printk("o: %x\n", o);
+            if(DEBUG) printk("o: %x\n", o);
             payload = uart_generate_io_payload(o);
             return create_response("!1B", payload);
             ;
 
         case '4':
-            printk("Case 4; Getting Last Temp\n");
+            if(DEBUG) printk("Case 4; Getting Last Temp\n");
             int last_temp = rtdb_get_last_temp(db);
-            printk("last_temp: %d\n", last_temp);
+            if(DEBUG) printk("last_temp: %d\n", last_temp);
             payload = uart_generate_temp_payload(&last_temp, 1);
             return create_response("!1C", payload);
 
         case '5':
-            printk("Case 5; Getting Temps\n");
+            if(DEBUG) printk("Case 5; Getting Temps\n");
             rtdb_get_temps(db, temps);
-            printk("temps: ");
-            for (int i = 0; i < 20; i++)
-                printk("%d, ", temps[i]);
-            printk("\n");
+            if(DEBUG){
+                printk("temps: ");
+                for (int i = 0; i < 20; i++)
+                    printk("%d, ", temps[i]);
+                printk("\n");
+            }
             payload = uart_generate_temp_payload(temps, 20);
             return create_response("!1D", payload);
 
         case '6':
-            printk("Case 6; Getting High and Low\n");
+            if(DEBUG) printk("Case 6; Getting High and Low\n");
             highlow[0] = rtdb_get_high(db);
             highlow[1] = rtdb_get_low(db);
-            printk("high: %d   | low: %d \n", highlow[0], highlow[1]);
+            if(DEBUG) printk("high: %d   | low: %d \n", highlow[0], highlow[1]);
             payload = uart_generate_temp_payload(highlow, 2);
             return create_response("!1E", payload);
 
         case '7':
-            printk("Case 7; Resetting history\n");
+            if(DEBUG) printk("Case 7; Resetting history\n");
             rtdb_reset_temp_history(db);
             rtdb_get_temps(db, temps);
-            printk("temps: ");
-            for (int i = 0; i < 20; i++)
-                printk("%d, ", temps[i]);
-            printk("\n");
+            if(DEBUG){ 
+                printk("temps: ");
+                for (int i = 0; i < 20; i++)
+                    printk("%d, ", temps[i]);
+                printk("\n");
+            }
             highlow[0] = rtdb_get_high(db);
             highlow[1] = rtdb_get_low(db);
-            printk("high: %d   | low: %d \n", highlow[0], highlow[1]);
+            if(DEBUG) printk("high: %d   | low: %d \n", highlow[0], highlow[1]);
             return "\r\n";
 
         default:

@@ -2,6 +2,8 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+#define DEBUG 0
+
 RTDB* rtdb_create(void) {
     RTDB* db = (RTDB*)malloc(sizeof(RTDB));
     db->io = 0x00;
@@ -71,7 +73,7 @@ void rtdb_set_outputs(RTDB* db, unsigned char o) {
     k_mutex_lock(&db->mutex, K_FOREVER);
     
     db->io = (db->io & 0xF0) | (o & 0x0F);
-    printf("io: %x\n", db->io);
+    if(DEBUG) printf("io: %x\n", db->io);
     
     k_mutex_unlock(&db->mutex);
 }
@@ -84,7 +86,7 @@ void rtdb_set_output_at_index(RTDB* db, int index, unsigned char o) {
     else 
         db->io &= ~(1 << index);
 
-    printf("io: %x\n", db->io);
+    if(DEBUG) printf("io: %x\n", db->io);
 
     k_mutex_unlock(&db->mutex);
 }
