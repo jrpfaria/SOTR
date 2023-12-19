@@ -581,7 +581,6 @@ void BTNS_code(RTDB *db, void *argB, void *argC)
     {
         k_msleep(BTNS_period);
         rtdb_set_inputs(db, buttons_pressed);
-        buttons_pressed = 0x0;
     }
 }
 
@@ -631,5 +630,7 @@ void button_pressed(struct gpio_callback *cb)
             buttons_pressed |= 0x01 << i;
             if (DEBUG)
                 printk("Button %d pressed\n", i + 1);
+        } else {
+            buttons_pressed &= ~(0x01 << i);
         }
 }
