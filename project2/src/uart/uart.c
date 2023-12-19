@@ -132,7 +132,9 @@ char *uart_interface(RTDB *db, char *cmd)
         case '1':
             if (DEBUG)
                 printk("Case 1; Setting All Outputs\n");
-            bin = uart_lut(cmd[3]);
+            for (int i = 0; i < 4; i++)
+                bin |= uart_lut(cmd[3 + i]) << i;
+
             rtdb_set_outputs(db, bin);
             if (DEBUG)
                 printk("outputs: %x\n", rtdb_get_outputs(db));
@@ -155,7 +157,6 @@ char *uart_interface(RTDB *db, char *cmd)
                 printk("o: %x\n", o);
             payload = uart_generate_io_payload(o);
             return create_response("!1B", payload);
-            ;
 
         case '4':
             if (DEBUG)

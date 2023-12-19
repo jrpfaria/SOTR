@@ -48,14 +48,14 @@
 /* Thread scheduling priority */
 #define UART_prio 1
 #define LEDS_prio 1
-#define BTNS_prio 1
+#define BTNS_prio 3
 #define TC74_prio 1
 
 /* Thread periodicity (in ms)*/
 #define UART_period 1000
-#define LEDS_period 2000
-#define BTNS_period 4000
-#define TC74_period 4000
+#define LEDS_period 100
+#define BTNS_period 100
+#define TC74_period 1000
 
 /* Macros */
 #define ACK_MSG_SIZE 9
@@ -132,7 +132,7 @@ const struct device *uart_dev = DEVICE_DT_GET(UART_NODE);
 static uint8_t rx_buf[RXBUF_SIZE];   /* RX buffer, to store received data */
 static uint8_t rx_chars[RXBUF_SIZE]; /* chars actually received  */
 volatile int uart_rxbuf_nchar = 0;   /* Number of chars currrntly on the rx buffer */
-struct k_sem uart_sem;
+char errCode;
 
 #define RETRANSMISSION_DELAY_MS 5000 /* Time between retransmissions*/
 
@@ -242,7 +242,7 @@ static void uart_cb(const struct device *dev, struct uart_event *evt, void *user
     }
 }
 
-char *rcv_msg(char *buffer, int i, char *errCode)
+char *rcv_msg(char *buffer, int i)
 {
     int k = 0;
     char *msg = malloc(sizeof(char) * 30);
@@ -260,7 +260,7 @@ char *rcv_msg(char *buffer, int i, char *errCode)
             if (DEBUG)
                 printk("message too long: %d\n", k);
             memset(msg, 0, 30);
-            memcpy(errCode, "4", 1);
+            errCode = '4';
             break;
         }
 
@@ -269,7 +269,7 @@ char *rcv_msg(char *buffer, int i, char *errCode)
             if (DEBUG)
                 printk("bad message\n");
             memset(msg, 0, 30);
-            memcpy(errCode, "4", 1);
+            errCode = '4';
             break;
         }
     }
@@ -348,14 +348,14 @@ void UART_code(RTDB *db, void *argB, void *argC)
                     printk("uart_tx() error. Error code:%d\n\r", err);
                     return;
                 }
-                k_msleep(1);
+                k_msleep(10);
                 err = uart_tx(uart_dev, retransmission, strlen(retransmission), SYS_FOREVER_MS);
                 if (err)
                 {
                     printk("uart_tx() error. Error code:%d\n\r", err);
                     return;
                 }
-                k_msleep(5);
+                k_msleep(10);
                 if (strlen(buffer) > 0)
                 {
                     err = uart_tx(uart_dev, buffer, strlen(buffer), SYS_FOREVER_MS);
@@ -364,7 +364,7 @@ void UART_code(RTDB *db, void *argB, void *argC)
                         printk("uart_tx() error. Error code:%d\n\r", err);
                         return;
                     }
-                    k_msleep(1);
+                    k_msleep(10);
                 }
             }
         }
@@ -397,9 +397,9 @@ void UART_code(RTDB *db, void *argB, void *argC)
                 }
                 k_msleep(1);
 
-                char *errCode;
                 i--;
-                char *msg = rcv_msg(buffer, i, &errCode);
+                errCode = '1';
+                char *msg = rcv_msg(buffer, i);
                 memset(buffer, 0, 64);
                 i = 0;
 
@@ -609,6 +609,7 @@ void TC74_code(RTDB *db, void *argB, void *argC)
     }
     while (1)
     {
+        k_msleep(TC74_UPDATE_PERIOD_MS);
         /* Read temperature register */
         ret = i2c_read_dt(&dev_i2c, &temp, sizeof(temp));
         if (ret != 0)
@@ -619,7 +620,6 @@ void TC74_code(RTDB *db, void *argB, void *argC)
         rtdb_insert_temp(db, temp);
 
         /* Pause  */
-        k_msleep(TC74_UPDATE_PERIOD_MS);
     }
 }
 
