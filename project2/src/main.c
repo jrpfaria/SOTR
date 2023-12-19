@@ -348,14 +348,14 @@ void UART_code(RTDB *db, void *argB, void *argC)
                     printk("uart_tx() error. Error code:%d\n\r", err);
                     return;
                 }
-                k_msleep(1);
+                k_msleep(10);
                 err = uart_tx(uart_dev, retransmission, strlen(retransmission), SYS_FOREVER_MS);
                 if (err)
                 {
                     printk("uart_tx() error. Error code:%d\n\r", err);
                     return;
                 }
-                k_msleep(5);
+                k_msleep(10);
                 if (strlen(buffer) > 0)
                 {
                     err = uart_tx(uart_dev, buffer, strlen(buffer), SYS_FOREVER_MS);
@@ -364,7 +364,7 @@ void UART_code(RTDB *db, void *argB, void *argC)
                         printk("uart_tx() error. Error code:%d\n\r", err);
                         return;
                     }
-                    k_msleep(1);
+                    k_msleep(10);
                 }
             }
         }

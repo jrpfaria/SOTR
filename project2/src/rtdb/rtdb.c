@@ -7,6 +7,8 @@
 RTDB* rtdb_create(void) {
     RTDB* db = (RTDB*)malloc(sizeof(RTDB));
     db->io = 0x00;
+    db->max = 0;
+    db->min = 0;
     
     for (int i = 0; i < 20; i++) 
         db->temp[i] = 0;
@@ -21,6 +23,7 @@ int rtdb_get_high(RTDB* db) {
     k_mutex_lock(&db->mutex, K_FOREVER);
 
     int high = db->max;
+    printk("high: %d\n", high);
     
     k_mutex_unlock(&db->mutex);
 
@@ -31,6 +34,7 @@ int rtdb_get_low(RTDB* db) {
     k_mutex_lock(&db->mutex, K_FOREVER);
 
     int low = db->min;
+    printk("low: %d\n",low);
     
     k_mutex_unlock(&db->mutex);
 
@@ -56,14 +60,14 @@ void rtdb_insert_temp(RTDB* db, int temp) {
         db->max = temp;
         for (int i = 0; i < 20; i++)
             if (db->temp[i] > db->max)
-                db->max = db->temp[i];
+                memcpy(&db->max, &db->temp[i], sizeof(int));
     }
 
     if (new_min){
         db->min = temp;
         for (int i = 0; i < 20; i++)
             if (db->temp[i] < db->min)
-                db->min = db->temp[i];
+                memcpy(&db->min, &db->temp[i], sizeof(int));
     }
 
     k_mutex_unlock(&db->mutex);
