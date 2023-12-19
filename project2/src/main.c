@@ -195,7 +195,8 @@ static void uart_cb(const struct device *dev, struct uart_event *evt, void *user
         break;
 
     case UART_TX_ABORTED:
-        printk("UART_TX_ABORTED event \n\r");
+        if (DEBUG)
+            printk("UART_TX_ABORTED event \n\r");
         break;
 
     case UART_RX_RDY:
@@ -207,17 +208,20 @@ static void uart_cb(const struct device *dev, struct uart_event *evt, void *user
         break;
 
     case UART_RX_BUF_REQUEST:
-        printk("UART_RX_BUF_REQUEST event \n\r");
+        if (DEBUG)
+            printk("UART_RX_BUF_REQUEST event \n\r");
         break;
 
     case UART_RX_BUF_RELEASED:
-        printk("UART_RX_BUF_RELEASED event \n\r");
+        if (DEBUG)
+            printk("UART_RX_BUF_RELEASED event \n\r");
         break;
 
     case UART_RX_DISABLED:
         /* When the RX_BUFF becomes full RX is is disabled automaticaly.  */
         /* It must be re-enabled manually for continuous reception */
-        printk("UART_RX_DISABLED event \n\r");
+        if (DEBUG)
+            printk("UART_RX_DISABLED event \n\r");
         err = uart_rx_enable(uart_dev, rx_buf, sizeof(rx_buf), RX_TIMEOUT);
         if (err)
         {
@@ -227,11 +231,13 @@ static void uart_cb(const struct device *dev, struct uart_event *evt, void *user
         break;
 
     case UART_RX_STOPPED:
-        printk("UART_RX_STOPPED event \n\r");
+        if (DEBUG)
+            printk("UART_RX_STOPPED event \n\r");
         break;
 
     default:
-        printk("UART: unknown event \n\r");
+        if (DEBUG)
+            printk("UART: unknown event \n\r");
         break;
     }
 }
