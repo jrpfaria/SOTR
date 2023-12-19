@@ -9,7 +9,7 @@ RTDB *rtdb_create(void)
     RTDB *db = (RTDB *)malloc(sizeof(RTDB));
     db->io = 0x00;
 
-    db->most_recent_temp = 0;
+    db->most_recent_temp = -1;
     for (int i = 0; i < 20; i++)
         db->temp[i] = 0;
 
@@ -52,8 +52,8 @@ void rtdb_insert_temp(RTDB *db, int temp)
 {
     k_mutex_lock(&db->t_mutex, K_FOREVER);
 
-    db->temp[db->most_recent_temp] = temp;
-    db->most_recent_temp = (db->most_recent_temp + 1) % 20;
+    db->temp[db->most_recent_temp++] = temp;
+    db->most_recent_temp %= 20;
 
     k_mutex_unlock(&db->t_mutex);
 }
