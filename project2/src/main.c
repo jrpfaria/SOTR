@@ -48,14 +48,14 @@
 /* Thread scheduling priority */
 #define UART_prio 1
 #define LEDS_prio 1
-#define BTNS_prio 1
+#define BTNS_prio 3
 #define TC74_prio 1
 
 /* Thread periodicity (in ms)*/
 #define UART_period 1000
-#define LEDS_period 2000
-#define BTNS_period 4000
-#define TC74_period 4000
+#define LEDS_period 100
+#define BTNS_period 100
+#define TC74_period 1000
 
 /* Macros */
 #define ACK_MSG_SIZE 9
@@ -609,6 +609,7 @@ void TC74_code(RTDB *db, void *argB, void *argC)
     }
     while (1)
     {
+        k_msleep(TC74_UPDATE_PERIOD_MS);
         /* Read temperature register */
         ret = i2c_read_dt(&dev_i2c, &temp, sizeof(temp));
         if (ret != 0)
@@ -619,7 +620,6 @@ void TC74_code(RTDB *db, void *argB, void *argC)
         rtdb_insert_temp(db, temp);
 
         /* Pause  */
-        k_msleep(TC74_UPDATE_PERIOD_MS);
     }
 }
 
