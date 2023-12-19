@@ -4,151 +4,147 @@
 
 #define DEBUG 0
 
-RTDB* rtdb_create(void) {
-    RTDB* db = (RTDB*)malloc(sizeof(RTDB));
+RTDB *rtdb_create(void)
+{
+    RTDB *db = (RTDB *)malloc(sizeof(RTDB));
     db->io = 0x00;
-    
-    for (int i = 0; i < 20; i++) 
+
+    db->most_recent_temp = 0;
+    for (int i = 0; i < 20; i++)
         db->temp[i] = 0;
 
     // Mutex to protect the database
-    k_mutex_init(&db->mutex);
+    k_mutex_init(&db->io_mutex);
+    k_mutex_init(&db->t_mutex);
 
     return db;
 }
 
-int rtdb_get_high(RTDB* db) {
-    k_mutex_lock(&db->mutex, K_FOREVER);
+int rtdb_get_high(RTDB *db)
+{
+    k_mutex_lock(&db->t_mutex, K_FOREVER);
 
-    int high = db->max;
-    
-    k_mutex_unlock(&db->mutex);
+    int high = db->temp[0];
+    for (int i = 0; i < 20; i++)
+        if (db->temp[i] > high)
+            high = db->temp[i];
+
+    k_mutex_unlock(&db->t_mutex);
 
     return high;
 }
 
-int rtdb_get_low(RTDB* db) {
-    k_mutex_lock(&db->mutex, K_FOREVER);
+int rtdb_get_low(RTDB *db)
+{
+    k_mutex_lock(&db->t_mutex, K_FOREVER);
 
-    int low = db->min;
-    
-    k_mutex_unlock(&db->mutex);
+    int low = db->temp[0];
+    for (int i = 0; i < 20; i++)
+        if (db->temp[i] < low)
+            low = db->temp[i];
+
+    k_mutex_unlock(&db->t_mutex);
 
     return low;
 }
 
-void rtdb_insert_temp(RTDB* db, int temp) {
-    k_mutex_lock(&db->mutex, K_FOREVER);
-    
-    int new_max = 0, new_min = 0;
-    int lost_temp = db->temp[19];
-    
-    if (lost_temp == db->max) 
-        new_max = 1;
-    else if(lost_temp == db->min)
-        new_min = 1;
+void rtdb_insert_temp(RTDB *db, int temp)
+{
+    k_mutex_lock(&db->t_mutex, K_FOREVER);
 
-    for (int i = 1; i < 20; i++)
-        db->temp[i] = db->temp[i-1];
-    db->temp[0] = temp;
+    db->temp[db->most_recent_temp] = temp;
+    db->most_recent_temp = (db->most_recent_temp + 1) % 20;
 
-    if (new_max){
-        db->max = temp;
-        for (int i = 0; i < 20; i++)
-            if (db->temp[i] > db->max)
-                db->max = db->temp[i];
-    }
-
-    if (new_min){
-        db->min = temp;
-        for (int i = 0; i < 20; i++)
-            if (db->temp[i] < db->min)
-                db->min = db->temp[i];
-    }
-
-    k_mutex_unlock(&db->mutex);
+    k_mutex_unlock(&db->t_mutex);
 }
 
-void rtdb_set_outputs(RTDB* db, unsigned char o) {
-    k_mutex_lock(&db->mutex, K_FOREVER);
-    
+void rtdb_set_outputs(RTDB *db, unsigned char o)
+{
+    k_mutex_lock(&db->io_mutex, K_FOREVER);
+
     db->io = (db->io & 0xF0) | (o & 0x0F);
-    if(DEBUG) printf("io: %x\n", db->io);
-    
-    k_mutex_unlock(&db->mutex);
+    if (DEBUG)
+        printf("io: %x\n", db->io);
+
+    k_mutex_unlock(&db->io_mutex);
 }
 
-void rtdb_set_output_at_index(RTDB* db, int index, unsigned char o) {
-    k_mutex_lock(&db->mutex, K_FOREVER);
+void rtdb_set_output_at_index(RTDB *db, int index, unsigned char o)
+{
+    k_mutex_lock(&db->io_mutex, K_FOREVER);
 
-    if (o) 
+    if (o)
         db->io |= (1 << index);
-    else 
+    else
         db->io &= ~(1 << index);
 
-    if(DEBUG) printf("io: %x\n", db->io);
+    if (DEBUG)
+        printf("io: %x\n", db->io);
 
-    k_mutex_unlock(&db->mutex);
+    k_mutex_unlock(&db->io_mutex);
 }
 
-void rtdb_set_inputs(RTDB* db, unsigned char i) {
-    k_mutex_lock(&db->mutex, K_FOREVER);
+void rtdb_set_inputs(RTDB *db, unsigned char i)
+{
+    k_mutex_lock(&db->io_mutex, K_FOREVER);
 
     db->io = (i << 4) | (db->io & 0x0F);
 
-    k_mutex_unlock(&db->mutex);
+    k_mutex_unlock(&db->io_mutex);
 }
 
-unsigned char rtdb_get_outputs(RTDB* db) {
-    k_mutex_lock(&db->mutex, K_FOREVER);
+unsigned char rtdb_get_outputs(RTDB *db)
+{
+    k_mutex_lock(&db->io_mutex, K_FOREVER);
 
     unsigned char o = db->io & 0x0F;
 
-    k_mutex_unlock(&db->mutex);
+    k_mutex_unlock(&db->io_mutex);
 
     return o;
 }
 
-unsigned char rtdb_get_inputs(RTDB* db) {
-    k_mutex_lock(&db->mutex, K_FOREVER);
+unsigned char rtdb_get_inputs(RTDB *db)
+{
+    k_mutex_lock(&db->io_mutex, K_FOREVER);
 
     unsigned char i = db->io >> 4;
 
-    k_mutex_unlock(&db->mutex);
+    k_mutex_unlock(&db->io_mutex);
 
     return i;
 }
 
-int rtdb_get_last_temp(RTDB* db) {
-    k_mutex_lock(&db->mutex, K_FOREVER);
+int rtdb_get_last_temp(RTDB *db)
+{
+    k_mutex_lock(&db->t_mutex, K_FOREVER);
 
-    int last_temp = db->temp[0];
+    int last_temp = db->temp[db->most_recent_temp];
 
-    k_mutex_unlock(&db->mutex);
+    k_mutex_unlock(&db->t_mutex);
 
     return last_temp;
 }
 
-int* rtdb_get_temps(RTDB* db, int* tmp) {
-    k_mutex_lock(&db->mutex, K_FOREVER);
+int *rtdb_get_temps(RTDB *db, int *tmp)
+{
+    k_mutex_lock(&db->t_mutex, K_FOREVER);
 
     for (int i = 0; i < 20; i++)
         tmp[i] = db->temp[i];
 
-    k_mutex_unlock(&db->mutex);
+    k_mutex_unlock(&db->t_mutex);
 
     return tmp;
 }
 
-void rtdb_reset_temp_history(RTDB* db) {
-    k_mutex_lock(&db->mutex, K_FOREVER);
+void rtdb_reset_temp_history(RTDB *db)
+{
+    k_mutex_lock(&db->t_mutex, K_FOREVER);
 
     for (int i = 0; i < 20; i++)
         db->temp[i] = 0;
-    
-    db->max = 0;
-    
-    db->min = 0;
+    db->most_recent_temp = 0;
 
-    k_mutex_unlock(&db->mutex);
+    k_mutex_unlock(&db->t_mutex);
 }
