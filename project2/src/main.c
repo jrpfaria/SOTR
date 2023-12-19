@@ -70,8 +70,7 @@ static const struct gpio_dt_spec leds[] = {
     GPIO_DT_SPEC_GET(LED0_NODE, gpios),
     GPIO_DT_SPEC_GET(LED1_NODE, gpios),
     GPIO_DT_SPEC_GET(LED2_NODE, gpios),
-    GPIO_DT_SPEC_GET(LED3_NODE, gpios)
-};
+    GPIO_DT_SPEC_GET(LED3_NODE, gpios)};
 
 // Button nodes
 #define SW0_NODE DT_ALIAS(sw0)
@@ -82,8 +81,7 @@ static const struct gpio_dt_spec buttons[] = {
     GPIO_DT_SPEC_GET(SW0_NODE, gpios),
     GPIO_DT_SPEC_GET(SW1_NODE, gpios),
     GPIO_DT_SPEC_GET(SW2_NODE, gpios),
-    GPIO_DT_SPEC_GET(SW3_NODE, gpios)
-};
+    GPIO_DT_SPEC_GET(SW3_NODE, gpios)};
 
 // Button call back
 static struct gpio_callback button_cb_data;
@@ -192,7 +190,8 @@ static void uart_cb(const struct device *dev, struct uart_event *evt, void *user
     {
 
     case UART_TX_DONE:
-        if(DEBUG) printk("UART_TX_DONE event \n\r");
+        if (DEBUG)
+            printk("UART_TX_DONE event \n\r");
         break;
 
     case UART_TX_ABORTED:
@@ -200,7 +199,8 @@ static void uart_cb(const struct device *dev, struct uart_event *evt, void *user
         break;
 
     case UART_RX_RDY:
-        if(DEBUG) printk("UART_RX_RDY event \n\r");
+        if (DEBUG)
+            printk("UART_RX_RDY event \n\r");
         /* Just copy data to a buffer. Usually it is preferable to use e.g. a FIFO to communicate with a task that shall process the messages*/
         memcpy(&rx_chars[uart_rxbuf_nchar], &(rx_buf[evt->data.rx.offset]), evt->data.rx.len);
         uart_rxbuf_nchar++;
@@ -251,7 +251,8 @@ char *rcv_msg(char *buffer, int i, char *errCode)
 
         if (29 == ++k)
         {
-            if(DEBUG) printk("message too long: %d\n", k);
+            if (DEBUG)
+                printk("message too long: %d\n", k);
             memset(msg, 0, 30);
             memcpy(errCode, "4", 1);
             break;
@@ -259,7 +260,8 @@ char *rcv_msg(char *buffer, int i, char *errCode)
 
         if (buffer[i] == '#')
         {
-            if(DEBUG) printk("bad message\n");
+            if (DEBUG)
+                printk("bad message\n");
             memset(msg, 0, 30);
             memcpy(errCode, "4", 1);
             break;
@@ -333,25 +335,41 @@ void UART_code(RTDB *db, void *argB, void *argC)
             if (fin_time > release_time)
             {
                 release_time = fin_time + RETRANSMISSION_DELAY_MS;
-                err = uart_tx(uart_dev, retransmission, strlen(retransmission), SYS_FOREVER_MS);
+                char clearLine[] = "\33[2K\r"; /* if the user is already writing the ack message erase it, send retransmission and send incomplete message*/
+                err = uart_tx(uart_dev, clearLine, strlen(clearLine), SYS_FOREVER_MS);
                 if (err)
                 {
                     printk("uart_tx() error. Error code:%d\n\r", err);
                     return;
                 }
                 k_msleep(1);
+                err = uart_tx(uart_dev, retransmission, strlen(retransmission), SYS_FOREVER_MS);
+                if (err)
+                {
+                    printk("uart_tx() error. Error code:%d\n\r", err);
+                    return;
+                }
+                k_msleep(5);
+                if (strlen(buffer) > 0)
+                {
+                    err = uart_tx(uart_dev, buffer, strlen(buffer), SYS_FOREVER_MS);
+                    if (err)
+                    {
+                        printk("uart_tx() error. Error code:%d\n\r", err);
+                        return;
+                    }
+                    k_msleep(1);
+                }
             }
         }
 
-        /* Print string received so far. */
-        /* Very basic implementation, just for showing the use of the API */
-        /* E.g. it does not prevent race conditions with the callback!!!!*/
         if (uart_rxbuf_nchar > 0)
         {
             rx_chars[uart_rxbuf_nchar] = 0; /* Terminate the string */
             uart_rxbuf_nchar = 0;           /* Reset counter */
 
-            buffer[i] = rx_chars[0];
+            for (int k = 0; k < strlen(rx_chars); k++)
+                buffer[i] = rx_chars[k], i = ++i % 64;
 
             sprintf(rep_mesg, "%s", rx_chars);
             err = uart_tx(uart_dev, rep_mesg, strlen(rep_mesg), SYS_FOREVER_MS);
@@ -362,7 +380,7 @@ void UART_code(RTDB *db, void *argB, void *argC)
             }
             k_msleep(1);
 
-            if (rx_chars[0] == '#')
+            if (strchr(buffer, '#') != NULL)
             {
                 char newLine[] = "\r\n";
                 err = uart_tx(uart_dev, newLine, strlen(newLine), SYS_FOREVER_MS);
@@ -373,15 +391,19 @@ void UART_code(RTDB *db, void *argB, void *argC)
                 }
                 k_msleep(1);
 
-                char errCode;
+                char *errCode;
+                i--;
                 char *msg = rcv_msg(buffer, i, &errCode);
+                memset(buffer, 0, 64);
+                i = 0;
 
                 if (waitAck)
                 {
-                    if (uart_checkSum(msg))
+                    if (uart_checkSum(msg) && msg[2] == 'Z' && msg[3] == retransmission[2] && msg[4] == '1')
                         waitAck = 0;
                     else
                     {
+                        release_time = k_uptime_get() + RETRANSMISSION_DELAY_MS;
                         err = uart_tx(uart_dev, retransmission, strlen(retransmission), SYS_FOREVER_MS);
                         if (err)
                         {
@@ -479,7 +501,7 @@ void UART_code(RTDB *db, void *argB, void *argC)
             }
 
             // it should only go up to 63 due to buffer size
-            i = ++i % 64;
+            // i = ++i % 64;
         }
         // printk(".\n");
     }
@@ -490,7 +512,7 @@ void LEDS_code(RTDB *db, void *argB, void *argC)
     int ret[4];
 
     // Check if GPIO devices are ready
-    for(int i = 0; i < 4; i++)
+    for (int i = 0; i < 4; i++)
         if (!device_is_ready(leds[i].port))
         {
             printk("Error: GPIO %d output devices not ready\n", i);
@@ -499,7 +521,7 @@ void LEDS_code(RTDB *db, void *argB, void *argC)
 
     // Check if GPIO devices are configured correctly
     for (int i = 0; i < 4; i++)
-        if(gpio_pin_configure_dt(&leds[i], GPIO_OUTPUT_ACTIVE) < 0)
+        if (gpio_pin_configure_dt(&leds[i], GPIO_OUTPUT_ACTIVE) < 0)
         {
             printk("Error: GPIO %d output devices not configured\n", i);
             return;
@@ -509,19 +531,19 @@ void LEDS_code(RTDB *db, void *argB, void *argC)
     {
         k_msleep(LEDS_period);
         unsigned char o = rtdb_get_outputs(db);
-        if(DEBUG) printk("leds: %x\n", o);
+        if (DEBUG)
+            printk("leds: %x\n", o);
 
         // Set LEDs to match rtdb values
-        for(int i = 0; i < 4; i++)
+        for (int i = 0; i < 4; i++)
             gpio_pin_set(leds[i].port, leds[i].pin, o & (0x01 << i));
     }
 }
 
-
 void BTNS_code(RTDB *db, void *argB, void *argC)
 {
     // Check if GPIO devices are ready
-    for(int i = 0; i < 4; i++)
+    for (int i = 0; i < 4; i++)
         if (!device_is_ready(buttons[i].port))
         {
             printk("Error: GPIO %d output devices not ready\n", i);
@@ -530,7 +552,7 @@ void BTNS_code(RTDB *db, void *argB, void *argC)
 
     // Check if GPIO devices are configured correctly
     for (int i = 0; i < 4; i++)
-        if(gpio_pin_configure_dt(&buttons[i], GPIO_INPUT) < 0)
+        if (gpio_pin_configure_dt(&buttons[i], GPIO_INPUT) < 0)
         {
             printk("Error: GPIO %d output devices not configured\n", i);
             return;
@@ -538,7 +560,7 @@ void BTNS_code(RTDB *db, void *argB, void *argC)
 
     // Configure GPIO devices' interrupts
     for (int i = 0; i < 4; i++)
-        if(gpio_pin_interrupt_configure_dt(&buttons[i], GPIO_INT_EDGE_TO_ACTIVE) < 0)
+        if (gpio_pin_interrupt_configure_dt(&buttons[i], GPIO_INT_EDGE_TO_ACTIVE) < 0)
         {
             printk("Error: GPIO %d interrupts not properly configured\n", i);
             return;
@@ -577,7 +599,7 @@ void TC74_code(RTDB *db, void *argB, void *argC)
     ret = i2c_write_dt(&dev_i2c, TC74_CMD_RTR, 1);
     if (ret != 0)
     {
-        printk("Failed to write to I2C device at address %x, register %x, ret. %d \n\r", dev_i2c.addr, TC74_CMD_RTR, ret);
+        printk("Failed to write to I2C device at address %x, register %x\n\r", dev_i2c.addr, TC74_CMD_RTR);
     }
     while (1)
     {
@@ -585,7 +607,7 @@ void TC74_code(RTDB *db, void *argB, void *argC)
         ret = i2c_read_dt(&dev_i2c, &temp, sizeof(temp));
         if (ret != 0)
         {
-            printk("Failed to read from I2C device at address %x, register  at Reg. %x, ret. %d \n\r", dev_i2c.addr, TC74_CMD_RTR, ret);
+            printk("Failed to read from I2C device at address %x, register  at Reg. %x\n\r", dev_i2c.addr, TC74_CMD_RTR);
         }
 
         rtdb_insert_temp(db, temp);
@@ -598,8 +620,10 @@ void TC74_code(RTDB *db, void *argB, void *argC)
 void button_pressed(struct gpio_callback *cb)
 {
     for (int i = 0; i < 4; i++)
-        if (gpio_pin_get(buttons[i].port, buttons[i].pin)){
+        if (gpio_pin_get(buttons[i].port, buttons[i].pin))
+        {
             buttons_pressed |= 0x01 << i;
-            if(DEBUG) printk("Button %d pressed\n", i + 1);
+            if (DEBUG)
+                printk("Button %d pressed\n", i + 1);
         }
 }

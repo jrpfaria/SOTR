@@ -95,19 +95,20 @@ char *uart_generate_temp_payload(int *temp, int size)
 
 char *create_response(char *cmd, char *payload)
 {
-    char *response = malloc(strlen(cmd) + strlen(payload) + sizeof(char) * 6); //cmd + payload + checksum + #\n\n
+    char *response = malloc(strlen(cmd) + strlen(payload) + sizeof(char) * 6); // cmd + payload + checksum + #\n\n
 
     response[0] = '\0';
     strcat(response, cmd);
     strcat(response, payload);
     uart_apply_checksum(response, strlen(response) + 4);
-    strcat(response,"\r\n");
+    strcat(response, "\r\n");
     return response;
 }
 
 char *uart_interface(RTDB *db, char *cmd)
 {
-    if(DEBUG) printk("cmd: %s\n", cmd);
+    if (DEBUG)
+        printk("cmd: %s\n", cmd);
 
     int index;
     unsigned char bin;
@@ -119,46 +120,58 @@ char *uart_interface(RTDB *db, char *cmd)
         switch (cmd[2])
         {
         case '0':
-            if(DEBUG) printk("Case 0; Setting Output at Index\n");
+            if (DEBUG)
+                printk("Case 0; Setting Output at Index\n");
             index = (int)uart_lut(cmd[3]);
             bin = uart_lut(cmd[4]);
             rtdb_set_output_at_index(db, --index, bin);
-            if(DEBUG) printk("outputs: %x\n", rtdb_get_outputs(db));
+            if (DEBUG)
+                printk("outputs: %x\n", rtdb_get_outputs(db));
             return "\r\n";
 
         case '1':
-            if(DEBUG) printk("Case 1; Setting All Outputs\n");
+            if (DEBUG)
+                printk("Case 1; Setting All Outputs\n");
             bin = uart_lut(cmd[3]);
             rtdb_set_outputs(db, bin);
-            if(DEBUG) printk("outputs: %x\n", rtdb_get_outputs(db));
+            if (DEBUG)
+                printk("outputs: %x\n", rtdb_get_outputs(db));
             return "\r\n";
 
         case '2':
-            if(DEBUG) printk("Case 2; Getting All Inputs\n");
+            if (DEBUG)
+                printk("Case 2; Getting All Inputs\n");
             unsigned char i = rtdb_get_inputs(db);
-            if(DEBUG) printk("i: %x\n", i);
+            if (DEBUG)
+                printk("i: %x\n", i);
             payload = uart_generate_io_payload(i);
             return create_response("!1A", payload);
 
         case '3':
-            if(DEBUG) printk("Case 3; Getting All Outputs\n");
+            if (DEBUG)
+                printk("Case 3; Getting All Outputs\n");
             unsigned char o = rtdb_get_outputs(db);
-            if(DEBUG) printk("o: %x\n", o);
+            if (DEBUG)
+                printk("o: %x\n", o);
             payload = uart_generate_io_payload(o);
             return create_response("!1B", payload);
             ;
 
         case '4':
-            if(DEBUG) printk("Case 4; Getting Last Temp\n");
+            if (DEBUG)
+                printk("Case 4; Getting Last Temp\n");
             int last_temp = rtdb_get_last_temp(db);
-            if(DEBUG) printk("last_temp: %d\n", last_temp);
+            if (DEBUG)
+                printk("last_temp: %d\n", last_temp);
             payload = uart_generate_temp_payload(&last_temp, 1);
             return create_response("!1C", payload);
 
         case '5':
-            if(DEBUG) printk("Case 5; Getting Temps\n");
+            if (DEBUG)
+                printk("Case 5; Getting Temps\n");
             rtdb_get_temps(db, temps);
-            if(DEBUG){
+            if (DEBUG)
+            {
                 printk("temps: ");
                 for (int i = 0; i < 20; i++)
                     printk("%d, ", temps[i]);
@@ -168,18 +181,22 @@ char *uart_interface(RTDB *db, char *cmd)
             return create_response("!1D", payload);
 
         case '6':
-            if(DEBUG) printk("Case 6; Getting High and Low\n");
+            if (DEBUG)
+                printk("Case 6; Getting High and Low\n");
             highlow[0] = rtdb_get_high(db);
             highlow[1] = rtdb_get_low(db);
-            if(DEBUG) printk("high: %d   | low: %d \n", highlow[0], highlow[1]);
+            if (DEBUG)
+                printk("high: %d   | low: %d \n", highlow[0], highlow[1]);
             payload = uart_generate_temp_payload(highlow, 2);
             return create_response("!1E", payload);
 
         case '7':
-            if(DEBUG) printk("Case 7; Resetting history\n");
+            if (DEBUG)
+                printk("Case 7; Resetting history\n");
             rtdb_reset_temp_history(db);
             rtdb_get_temps(db, temps);
-            if(DEBUG){ 
+            if (DEBUG)
+            {
                 printk("temps: ");
                 for (int i = 0; i < 20; i++)
                     printk("%d, ", temps[i]);
@@ -187,7 +204,8 @@ char *uart_interface(RTDB *db, char *cmd)
             }
             highlow[0] = rtdb_get_high(db);
             highlow[1] = rtdb_get_low(db);
-            if(DEBUG) printk("high: %d   | low: %d \n", highlow[0], highlow[1]);
+            if (DEBUG)
+                printk("high: %d   | low: %d \n", highlow[0], highlow[1]);
             return "\r\n";
 
         default:
