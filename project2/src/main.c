@@ -46,9 +46,9 @@
 #define STACK_SIZE 8192
 
 /* Thread scheduling priority */
-#define UART_prio 1
-#define LEDS_prio 1
-#define BTNS_prio 3
+#define UART_prio 3
+#define LEDS_prio 2
+#define BTNS_prio 4
 #define TC74_prio 1
 
 /* Thread periodicity (in ms)*/
@@ -566,7 +566,7 @@ void BTNS_code(RTDB *db, void *argB, void *argC)
 
     // Configure GPIO devices' interrupts
     for (int i = 0; i < 4; i++)
-        if (gpio_pin_interrupt_configure_dt(&buttons[i], GPIO_INT_EDGE_TO_ACTIVE) < 0)
+        if (gpio_pin_interrupt_configure_dt(&buttons[i], GPIO_INT_TRIG_BOTH) < 0)
         {
             printk("Error: GPIO %d interrupts not properly configured\n", i);
             return;
